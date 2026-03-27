@@ -1,0 +1,22 @@
+{
+  "db_type": "mysql",
+  "mysql": {
+    "host": "your-db-host.com",
+    "port": 3306,
+    "user": "your_username",
+    "password": "your_password",
+    "database": "hotel_data",
+    "charset": "utf8mb4",
+    "connect_timeout": 10,
+    "read_timeout": 30,
+    "write_timeout": 30,
+    "ssl": {
+      "enabled": false,
+      "ca": null,
+      "cert": null,
+      "key": null
+    },
+    "ssl_disabled": false
+  }
+}
+

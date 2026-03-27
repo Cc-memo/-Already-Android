@@ -1,0 +1,21 @@
+services:
+  selenium:
+    image: selenium/standalone-chromium:latest
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+    environment:
+      - SE_NODE_MAX_SESSIONS=1
+      - SE_NODE_OVERRIDE_MAX_SESSIONS=true
+
+  app:
+    image: hotel-crawler:latest
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - ./db_config.json:/app/db_config.json:ro
+    depends_on:
+      - selenium
+    environment:
+      - SELENIUM_REMOTE_URL=http://selenium:4444/wd/hub
+    command: ["sleep", "infinity"]

@@ -1,0 +1,20 @@
+# 携程酒店爬虫依赖
+selenium>=4.0.0
+webdriver-manager>=4.0.0
+
+# Pipeline 可视化依赖（可选，但推荐安装）
+colorama>=0.4.6
+tqdm>=4.66.0
+
+# 数据库依赖（SQLite是Python标准库，无需安装）
+# MySQL支持（使用MySQL时需要）
+pymysql>=1.1.0
+
+# API服务依赖（部署到服务器时需要）
+flask>=2.0.0
+flask-cors>=3.0.0
+gunicorn>=20.1.0
+
+# 代理通RPA依赖
+playwright>=1.40.0
+pyyaml>=6.0

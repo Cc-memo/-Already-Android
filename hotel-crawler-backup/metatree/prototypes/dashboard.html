@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首页 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f0;
+            color: #2c3e50;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #d4af37;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .menu-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+            padding: 0;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 16px 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e8e8e3;
+            position: relative;
+            z-index: 100;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1a365d;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .welcome-section {
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 16px rgba(26, 54, 93, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .welcome-section::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
+        }
+
+        .welcome-section h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .welcome-section p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(26, 54, 93, 0.15);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .stat-card-title {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .stat-card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .stat-card-icon.blue {
+            background: linear-gradient(135deg, #e8f4f8 0%, #d1e9f1 100%);
+            color: #1a365d;
+        }
+
+        .stat-card-icon.green {
+            background: linear-gradient(135deg, #f0f7e8 0%, #e1efd1 100%);
+            color: #5a7c3a;
+        }
+
+        .stat-card-icon.orange {
+            background: linear-gradient(135deg, #fff7e6 0%, #ffefd1 100%);
+            color: #d4af37;
+        }
+
+        .stat-card-icon.purple {
+            background: linear-gradient(135deg, #f5f0f8 0%, #ebe1f1 100%);
+            color: #6b4c93;
+        }
+
+        .stat-card-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #262626;
+            margin-bottom: 8px;
+        }
+
+        .stat-card-footer {
+            color: #8C8C8C;
+            font-size: 12px;
+        }
+
+        .quick-actions {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #262626;
+        }
+
+        .quick-crawl-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            font-size: 14px;
+            color: #262626;
+            margin-bottom: 8px;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            padding: 8px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-group .hint {
+            font-size: 12px;
+            color: #8C8C8C;
+            margin-top: 4px;
+        }
+
+        .platform-checkboxes {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 8px 0;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            padding: 8px 24px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(26, 54, 93, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            padding: 8px 24px;
+            background: white;
+            color: #262626;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: #d4af37;
+            color: #d4af37;
+            background: #fffbf0;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .task-list {
+            list-style: none;
+        }
+
+        .task-item {
+            padding: 16px;
+            border-bottom: 1px solid #F0F0F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-item:last-child {
+            border-bottom: none;
+        }
+
+        .task-info h4 {
+            font-size: 14px;
+            margin-bottom: 4px;
+            color: #262626;
+        }
+
+        .task-info p {
+            font-size: 12px;
+            color: #8C8C8C;
+        }
+
+        .task-status {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .task-status.success {
+            background: #f0f7e8;
+            color: #5a7c3a;
+            border: 1px solid #d1e9c1;
+        }
+
+        .task-status.running {
+            background: #e8f4f8;
+            color: #1a365d;
+            border: 1px solid #c1d9e9;
+        }
+
+        .task-status.failed {
+            background: #fff5f5;
+            color: #c94a4a;
+            border: 1px solid #ffd1d1;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        /* 消息提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: #f0f7e8;
+            color: #5a7c3a;
+            border: 1px solid #d1e9c1;
+        }
+
+        .toast.error {
+            background: #fff5f5;
+            color: #c94a4a;
+            border: 1px solid #ffd1d1;
+        }
+
+        .toast.info {
+            background: #e8f4f8;
+            color: #1a365d;
+            border: 1px solid #c1d9e9;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .task-item {
+            cursor: pointer;
+        }
+
+        .task-item:hover {
+            background: #F5F5F5;
+        }
+
+        .btn-primary:disabled {
+            background: #D9D9D9;
+            cursor: not-allowed;
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item active">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="header-left">
+                    <div class="breadcrumb">
+                        <a href="dashboard.html">首页</a>
+                    </div>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="color: #8C8C8C; cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down" style="color: #8C8C8C;"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="welcome-section">
+                    <h1 id="welcomeMessage">欢迎回来</h1>
+                    <p id="todayDate">今天是 --，系统运行正常</p>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">总任务数</span>
+                            <div class="stat-card-icon blue">
+                                <i class="fas fa-tasks"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">1,234</div>
+                        <div class="stat-card-footer">较昨日 +12</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">成功任务</span>
+                            <div class="stat-card-icon green">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">1,156</div>
+                        <div class="stat-card-footer">成功率 93.7%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">总数据量</span>
+                            <div class="stat-card-icon orange">
+                                <i class="fas fa-database"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">56,789</div>
+                        <div class="stat-card-footer">较昨日 +234</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-card-header">
+                            <span class="stat-card-title">覆盖区域</span>
+                            <div class="stat-card-icon purple">
+                                <i class="fas fa-map-marked-alt"></i>
+                            </div>
+                        </div>
+                        <div class="stat-card-value">12</div>
+                        <div class="stat-card-footer">个城市</div>
+                    </div>
+                </div>
+
+                <div class="quick-actions">
+                    <div class="section-title">快速爬取</div>
+                    <form class="quick-crawl-form">
+                        <div class="form-group full-width">
+                            <label>酒店名称 <span style="color: #8C8C8C; font-weight: normal;">(支持批量输入，每行一个酒店名称)</span></label>
+                            <textarea id="hotelNames" placeholder="请输入酒店名称，每行一个，例如：&#10;北京王府井希尔顿酒店&#10;上海外滩华尔道夫酒店&#10;广州白天鹅宾馆"></textarea>
+                            <div class="hint">提示：可以输入多个酒店名称，每行一个，系统将自动为每个酒店创建任务</div>
+                        </div>
+                        <div class="form-group">
+                            <label>目标平台 <span style="color: #8C8C8C; font-weight: normal;">(可多选)</span></label>
+                            <div class="platform-checkboxes">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="platform-meituan" value="meituan" checked>
+                                    <label for="platform-meituan">美团</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="platform-ctrip" value="ctrip" checked>
+                                    <label for="platform-ctrip">携程</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="platform-fliggy" value="fliggy" checked>
+                                    <label for="platform-fliggy">飞猪</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="platform-gaode" value="gaode" checked>
+                                    <label for="platform-gaode">高德</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="clearForm()" style="background: white; border: 1px solid #D9D9D9; color: #262626;">清空</button>
+                            <button type="submit" class="btn-primary">开始爬取</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="content-grid">
+                    <div class="card">
+                        <div class="section-title">最近任务</div>
+                        <ul class="task-list">
+                            <li class="task-item" onclick="window.location.href='task_detail.html'">
+                                <div class="task-info">
+                                    <h4>北京王府井希尔顿酒店</h4>
+                                    <p>美团、携程、飞猪 | 2分钟前</p>
+                                </div>
+                                <span class="task-status success">已完成</span>
+                            </li>
+                            <li class="task-item" onclick="window.location.href='task_detail.html'">
+                                <div class="task-info">
+                                    <h4>上海外滩华尔道夫酒店</h4>
+                                    <p>全部平台 | 5分钟前</p>
+                                </div>
+                                <span class="task-status running">爬取中</span>
+                            </li>
+                            <li class="task-item" onclick="window.location.href='task_detail.html'">
+                                <div class="task-info">
+                                    <h4>广州白天鹅宾馆</h4>
+                                    <p>美团、高德 | 10分钟前</p>
+                                </div>
+                                <span class="task-status success">已完成</span>
+                            </li>
+                            <li class="task-item" onclick="window.location.href='task_detail.html'">
+                                <div class="task-info">
+                                    <h4>深圳香格里拉大酒店</h4>
+                                    <p>携程 | 15分钟前</p>
+                                </div>
+                                <span class="task-status failed">失败</span>
+                            </li>
+                            <li class="task-item" onclick="window.location.href='task_detail.html'">
+                                <div class="task-info">
+                                    <h4>杭州西湖国宾馆</h4>
+                                    <p>飞猪 | 20分钟前</p>
+                                </div>
+                                <span class="task-status success">已完成</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <div class="section-title">数据趋势（最近7天）</div>
+                        <div class="chart-container">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示容器 -->
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUser = null;
+        const API_BASE = window.location.origin + '/api';
+
+        // 消息提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            // 设置图标
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            // 3秒后自动隐藏
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 获取当前用户信息
+        // 加载用户头像到右上角
+        function loadUserAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                const headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.user-avatar');
+                
+                if (headerAvatar) {
+                    if (avatarData) {
+                        headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+                    } else {
+                        headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            const welcomeEl = document.getElementById('welcomeMessage');
+            const dateEl = document.getElementById('todayDate');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentUser = result.data;
+                    // 更新页面上的用户名显示
+                    if (usernameEl) {
+                        usernameEl.textContent = currentUser.real_name || currentUser.username || '管理员';
+                    }
+                    // 更新欢迎信息
+                    if (welcomeEl) {
+                        welcomeEl.textContent = `欢迎回来，${currentUser.real_name || currentUser.username || '管理员'}`;
+                    }
+                    // 更新日期
+                    if (dateEl) {
+                        const today = new Date();
+                        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                        dateEl.textContent = `今天是 ${today.toLocaleDateString('zh-CN', options)}，系统运行正常`;
+                    }
+                    // 加载用户头像
+                    loadUserAvatar(currentUser.id);
+                    return currentUser;
+                } else {
+                    // API返回失败，显示默认值
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    if (welcomeEl) welcomeEl.textContent = '欢迎回来，管理员';
+                    if (dateEl) {
+                        const today = new Date();
+                        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                        dateEl.textContent = `今天是 ${today.toLocaleDateString('zh-CN', options)}，系统运行正常`;
+                    }
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                // 网络错误或其他错误，显示默认值
+                if (usernameEl) usernameEl.textContent = '管理员';
+                if (welcomeEl) welcomeEl.textContent = '欢迎回来，管理员';
+                if (dateEl) {
+                    const today = new Date();
+                    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+                    dateEl.textContent = `今天是 ${today.toLocaleDateString('zh-CN', options)}，系统运行正常`;
+                }
+                return null;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 页面初始化
+        async function initPage() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+        }
+
+        // DOM 加载完成后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
+
+        // 侧边栏菜单跳转
+        const menuItems = document.querySelectorAll('.menu-item');
+        const menuRoutes = {
+            '首页': 'dashboard.html',
+            '任务中心': 'crawl-tasks.html',
+            '数据管理': 'data_query.html',
+            '数据分析': 'data_analysis.html',
+            '数据导出': 'data_export.html',
+            '用户管理': 'user_management.html',
+            '系统设置': 'system_settings.html'
+        };
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const menuText = this.querySelector('span').textContent;
+                const route = menuRoutes[menuText];
+                if (route && route !== window.location.pathname.split('/').pop()) {
+                    window.location.href = route;
+                }
+            });
+        });
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        userMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function() {
+            userDropdown.classList.remove('show');
+        });
+
+        // 通知图标点击
+        document.getElementById('notificationIcon').addEventListener('click', function(e) {
+            e.stopPropagation();
+            showToast('您有3条未读通知', 'info');
+        });
+
+        // 数据趋势图表
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['1/9', '1/10', '1/11', '1/12', '1/13', '1/14', '1/15'],
+                datasets: [{
+                    label: '新增数据量',
+                    data: [120, 190, 300, 250, 280, 234, 234],
+                    borderColor: '#1a365d',
+                    backgroundColor: 'rgba(26, 54, 93, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+
+        // 清空表单
+        function clearForm() {
+            document.getElementById('hotelNames').value = '';
+            document.querySelectorAll('.platform-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = true;
+            });
+            showToast('表单已清空', 'info');
+        }
+
+        // 表单提交处理
+        document.querySelector('.quick-crawl-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const hotelNames = document.getElementById('hotelNames').value.trim();
+            if (!hotelNames) {
+                showToast('请输入至少一个酒店名称', 'error');
+                return;
+            }
+
+            const selectedPlatforms = Array.from(document.querySelectorAll('.platform-checkboxes input[type="checkbox"]:checked'))
+                .map(cb => cb.nextElementSibling.textContent);
+            
+            if (selectedPlatforms.length === 0) {
+                showToast('请至少选择一个目标平台', 'error');
+                return;
+            }
+
+            const hotels = hotelNames.split('\n').filter(name => name.trim());
+            const btn = document.querySelector('.btn-primary');
+            
+            // 禁用按钮
+            btn.disabled = true;
+            btn.textContent = '创建中...';
+            
+            // 模拟创建任务
+            setTimeout(() => {
+                showToast(`成功创建 ${hotels.length} 个任务，目标平台：${selectedPlatforms.join('、')}`, 'success');
+                btn.disabled = false;
+                btn.textContent = '开始爬取';
+                
+                // 清空表单
+                clearForm();
+                
+                // 可选：跳转到任务列表
+                setTimeout(() => {
+                    if (confirm('是否跳转到任务列表查看？')) {
+                        window.location.href = 'crawl-tasks.html';
+                    }
+                }, 1500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

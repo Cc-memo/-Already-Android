@@ -1,0 +1,1021 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据查询 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f0;
+            color: #2c3e50;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo h2 {
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo i {
+            color: #d4af37;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu li {
+            margin-bottom: 4px;
+        }
+
+        .nav-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .nav-menu a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .nav-menu a.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .nav-menu a i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .nav-menu a:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+            padding: 0;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 16px 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border-bottom: 1px solid #e8e8e3;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1a365d;
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+            color: white;
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .query-panel {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .query-panel h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .query-form {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .form-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-item label {
+            font-size: 14px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+
+        .form-item input,
+        .form-item select {
+            padding: 8px 12px;
+            border: 1px solid #e8e8e3;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-item.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-primary {
+            padding: 8px 24px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(26, 54, 93, 0.2);
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            padding: 8px 24px;
+            background: white;
+            color: #2c3e50;
+            border: 1px solid #e8e8e3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .result-panel {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+            overflow: hidden;
+        }
+
+        .result-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #F0F0F0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-header h3 {
+            font-size: 16px;
+        }
+
+        .result-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #FAFAFA;
+        }
+
+        th {
+            padding: 12px 20px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+            color: #262626;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th.sortable:hover {
+            background: #F5F5F5;
+        }
+
+        td {
+            padding: 16px 20px;
+            font-size: 14px;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        tbody tr:hover {
+            background: #F5F5F5;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        .platform-badge {
+            padding: 2px 8px;
+            background: #E6F7FF;
+            color: #1a365d;
+            border-radius: 6px;
+            font-size: 12px;
+        }
+
+        .star-rating {
+            color: #FAAD14;
+        }
+
+        .pagination {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid #F0F0F0;
+        }
+
+        .pagination-info {
+            color: #8c8c8c;
+            font-size: 14px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            padding: 6px 12px;
+            background: white;
+            border: 1px solid #e8e8e3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .pagination-btn.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            border-color: #d4af37;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2><i class="fas fa-hotel"></i> 酒店管理平台</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="dashboard.html"><i class="fas fa-home"></i> 首页</a></li>
+                <li><a href="crawl-tasks.html"><i class="fas fa-tasks"></i> 任务中心</a></li>
+                <li><a href="data_query.html" class="active"><i class="fas fa-search"></i> 数据查询</a></li>
+                <li><a href="data_analysis.html"><i class="fas fa-chart-line"></i> 数据分析</a></li>
+                <li><a href="data_export.html"><i class="fas fa-download"></i> 数据导出</a></li>
+                <li><a href="user_management.html"><i class="fas fa-users"></i> 用户管理</a></li>
+                <li><a href="system_settings.html"><i class="fas fa-cog"></i> 系统设置</a></li>
+                <li><a href="profile.html"><i class="fas fa-user-circle"></i> 个人设置</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <span class="breadcrumb">数据管理 / 数据查询</span>
+                </div>
+                <div class="header-right">
+                    <i class="fas fa-bell" id="notificationIcon" style="cursor: pointer; color: #8C8C8C; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div class="user-info" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="query-panel">
+                    <h2><i class="fas fa-filter"></i> 查询条件</h2>
+                    <form class="query-form">
+                        <div class="form-item">
+                            <label>区域</label>
+                            <select id="regionSelect">
+                                <option value="">全部区域</option>
+                                <option value="beijing">北京</option>
+                                <option value="shanghai">上海</option>
+                                <option value="guangzhou">广州</option>
+                                <option value="shenzhen">深圳</option>
+                                <option value="hangzhou">杭州</option>
+                                <option value="chengdu">成都</option>
+                                <option value="nanjing">南京</option>
+                                <option value="wuhan">武汉</option>
+                                <option value="xian">西安</option>
+                                <option value="suzhou">苏州</option>
+                            </select>
+                        </div>
+                        <div class="form-item">
+                            <label>酒店名称</label>
+                            <input type="text" id="hotelNameInput" placeholder="输入酒店名称">
+                        </div>
+                        <div class="form-item">
+                            <label>平台</label>
+                            <select id="platformSelect">
+                                <option value="">全部</option>
+                                <option value="美团">美团</option>
+                                <option value="携程">携程</option>
+                                <option value="飞猪">飞猪</option>
+                                <option value="高德">高德</option>
+                            </select>
+                        </div>
+                        <div class="form-item">
+                            <label>星级</label>
+                            <select id="starSelect">
+                                <option value="">全部</option>
+                                <option value="五星">五星级</option>
+                                <option value="四星">四星级</option>
+                                <option value="三星">三星级</option>
+                                <option value="二星">二星级</option>
+                                <option value="一星">一星级</option>
+                            </select>
+                        </div>
+                        <div class="form-item">
+                            <label>点评分数</label>
+                            <input type="number" id="minRatingInput" step="0.1" min="0" max="5" placeholder="最小值">
+                        </div>
+                        <div class="form-item">
+                            <label>价格范围</label>
+                            <input type="number" id="minPriceInput" step="0.01" min="0" placeholder="最低价">
+                        </div>
+                        <div class="form-item">
+                            <label>&nbsp;</label>
+                            <input type="number" id="maxPriceInput" step="0.01" min="0" placeholder="最高价">
+                        </div>
+                        <div class="form-item">
+                            <label>爬取时间</label>
+                            <input type="date" id="startDateInput">
+                        </div>
+                        <div class="form-item">
+                            <label>&nbsp;</label>
+                            <input type="date" id="endDateInput">
+                        </div>
+                    </form>
+                    <div class="form-actions">
+                        <button type="button" class="btn-primary" id="queryBtn">
+                            <i class="fas fa-search"></i> 查询
+                        </button>
+                        <button type="button" class="btn-secondary" id="resetBtn">
+                            <i class="fas fa-redo"></i> 重置
+                        </button>
+                    </div>
+                </div>
+
+                <div class="result-panel">
+                    <div class="result-header">
+                        <h3>查询结果</h3>
+                        <div class="result-actions">
+                            <button class="btn-secondary">
+                                <i class="fas fa-download"></i> 导出
+                            </button>
+                        </div>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th class="sortable">酒店名称 <i class="fas fa-sort"></i></th>
+                                <th>平台</th>
+                                <th>星级</th>
+                                <th class="sortable">点评分数 <i class="fas fa-sort"></i></th>
+                                <th>点评条数</th>
+                                <th class="sortable">起价 <i class="fas fa-sort"></i></th>
+                                <th>预订动态</th>
+                                <th>爬取时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataTableBody">
+                            <tr>
+                                <td colspan="9" style="text-align: center; padding: 40px; color: #8c8c8c;">
+                                    <i class="fas fa-spinner fa-spin"></i> 加载中...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <div class="pagination-info" id="paginationInfo">
+                            共 0 条记录，每页 10 条，当前第 1 页
+                        </div>
+                        <div class="pagination-controls" id="paginationControls">
+                            <button class="pagination-btn" id="prevPageBtn" disabled>
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <button class="pagination-btn" id="nextPageBtn">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示容器 -->
+    <div id="toast" class="toast" style="display: none; position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; align-items: center; gap: 8px; min-width: 300px;">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 消息提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast show';
+            toast.style.background = type === 'success' ? '#F6FFED' : type === 'error' ? '#FFF1F0' : '#E6F7FF';
+            toast.style.color = type === 'success' ? '#52C41A' : type === 'error' ? '#F5222D' : '#1890FF';
+            toast.style.border = `1px solid ${type === 'success' ? '#B7EB8F' : type === 'error' ? '#FFCCC7' : '#91D5FF'}`;
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenu && userDropdown) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+        }
+
+        // 通知图标点击
+        const notificationIcon = document.getElementById('notificationIcon');
+        if (notificationIcon) {
+            notificationIcon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showToast('您有3条未读通知', 'info');
+            });
+        }
+
+        // 侧边栏菜单跳转
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const menuText = this.querySelector('span').textContent;
+                const routes = {
+                    '首页': 'dashboard.html',
+                    '任务中心': 'crawl-tasks.html',
+                    '数据管理': 'data_query.html',
+                    '数据分析': 'data_analysis.html',
+                    '数据导出': 'data_export.html',
+                    '用户管理': 'user_management.html',
+                    '系统设置': 'system_settings.html'
+                };
+                const route = routes[menuText];
+                if (route && route !== window.location.pathname.split('/').pop()) {
+                    window.location.href = route;
+                }
+            });
+        });
+
+        // 全局变量
+        let currentPage = 1;
+        let currentOrderBy = 'crawl_time';
+        let currentOrderDesc = true;
+        const perPage = 10;
+        let currentUser = null;
+
+        // API 基础路径（根据实际部署调整）
+        const API_BASE = window.location.origin + '/api';
+
+        // 加载用户头像到右上角
+        function loadUserAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                const headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.user-avatar');
+                
+                if (headerAvatar) {
+                    if (avatarData) {
+                        headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+                    } else {
+                        headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentUser = result.data;
+                    // 更新页面上的用户名显示
+                    if (usernameEl) {
+                        usernameEl.textContent = currentUser.real_name || currentUser.username || '管理员';
+                    }
+                    // 加载用户头像
+                    loadUserAvatar(currentUser.id);
+                    return currentUser;
+                } else {
+                    // API返回失败，显示默认值
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                // 网络错误或其他错误，显示默认值
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 格式化日期
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        // 格式化价格
+        function formatPrice(price) {
+            if (!price) return '-';
+            return `¥${price}/晚`;
+        }
+
+        // 格式化星级
+        function formatStarLevel(starLevel) {
+            if (!starLevel) return '-';
+            const starCount = starLevel.includes('五') ? 5 : 
+                            starLevel.includes('四') ? 4 :
+                            starLevel.includes('三') ? 3 :
+                            starLevel.includes('二') ? 2 :
+                            starLevel.includes('一') ? 1 : 0;
+            return '★'.repeat(starCount) || starLevel;
+        }
+
+        // 加载数据
+        async function loadData(page = 1) {
+            const tbody = document.getElementById('dataTableBody');
+            tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> 加载中...</td></tr>';
+
+            try {
+                // 构建查询参数
+                const params = new URLSearchParams();
+                
+                const hotelNameInput = document.getElementById('hotelNameInput');
+                if (hotelNameInput) {
+                    const hotelName = hotelNameInput.value.trim();
+                    if (hotelName) params.append('hotel_name', hotelName);
+                }
+
+                const platformSelect = document.getElementById('platformSelect');
+                if (platformSelect) {
+                    const platform = platformSelect.value;
+                    if (platform) params.append('platform', platform);
+                }
+
+                const regionSelect = document.getElementById('regionSelect');
+                if (regionSelect) {
+                    const region = regionSelect.value;
+                    if (region) params.append('region', region);
+                }
+
+                const starSelect = document.getElementById('starSelect');
+                if (starSelect) {
+                    const starLevel = starSelect.value;
+                    if (starLevel) params.append('star_level', starLevel);
+                }
+
+                const minRatingInput = document.getElementById('minRatingInput');
+                if (minRatingInput) {
+                    const minRating = minRatingInput.value;
+                    if (minRating) params.append('min_rating', minRating);
+                }
+
+                const maxRatingInput = document.getElementById('maxRatingInput');
+                if (maxRatingInput) {
+                    const maxRating = maxRatingInput.value;
+                    if (maxRating) params.append('max_rating', maxRating);
+                }
+
+                const minPriceInput = document.getElementById('minPriceInput');
+                if (minPriceInput) {
+                    const minPrice = minPriceInput.value;
+                    if (minPrice) params.append('min_price', minPrice);
+                }
+
+                const maxPriceInput = document.getElementById('maxPriceInput');
+                if (maxPriceInput) {
+                    const maxPrice = maxPriceInput.value;
+                    if (maxPrice) params.append('max_price', maxPrice);
+                }
+
+                const startDateInput = document.getElementById('startDateInput');
+                if (startDateInput) {
+                    const startDate = startDateInput.value;
+                    if (startDate) params.append('start_date', startDate);
+                }
+
+                const endDateInput = document.getElementById('endDateInput');
+                if (endDateInput) {
+                    const endDate = endDateInput.value;
+                    if (endDate) params.append('end_date', endDate);
+                }
+
+                params.append('page', page);
+                params.append('per_page', perPage);
+                params.append('order_by', currentOrderBy);
+                params.append('order_desc', currentOrderDesc);
+
+                const response = await fetch(`${API_BASE}/hotels?${params.toString()}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    renderTable(result.data);
+                    renderPagination(result.pagination);
+                } else {
+                    throw new Error(result.error || '查询失败');
+                }
+            } catch (error) {
+                tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 40px; color: #F5222D;">
+                    <i class="fas fa-exclamation-circle"></i> ${error.message}
+                </td></tr>`;
+                showToast('查询失败: ' + error.message, 'error');
+            }
+        }
+
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.getElementById('dataTableBody');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px; color: #8c8c8c;">暂无数据</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.map(hotel => `
+                <tr onclick="viewDetail(${hotel.id})">
+                    <td>${hotel.hotel_name || '-'}</td>
+                    <td><span class="platform-badge">${hotel.platform || '-'}</span></td>
+                    <td><span class="star-rating">${formatStarLevel(hotel.star_level)}</span></td>
+                    <td>${hotel.rating_score || '-'}</td>
+                    <td>${hotel.review_count ? hotel.review_count + '条' : '-'}</td>
+                    <td>${formatPrice(hotel.min_price)}</td>
+                    <td>${hotel.booking_dynamic || '-'}</td>
+                    <td>${formatDate(hotel.crawl_time)}</td>
+                    <td>
+                        <button class="btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="event.stopPropagation(); viewDetail(${hotel.id})">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 渲染分页
+        function renderPagination(pagination) {
+            const { page, per_page, total, total_pages } = pagination;
+            currentPage = page;
+
+            document.getElementById('paginationInfo').textContent = 
+                `共 ${total} 条记录，每页 ${per_page} 条，当前第 ${page} 页`;
+
+            const controls = document.getElementById('paginationControls');
+            const prevBtn = document.getElementById('prevPageBtn');
+            const nextBtn = document.getElementById('nextPageBtn');
+
+            prevBtn.disabled = page <= 1;
+            nextBtn.disabled = page >= total_pages;
+
+            // 生成页码按钮
+            let pageButtons = '';
+            const maxPages = 5;
+            let startPage = Math.max(1, page - Math.floor(maxPages / 2));
+            let endPage = Math.min(total_pages, startPage + maxPages - 1);
+            
+            if (endPage - startPage < maxPages - 1) {
+                startPage = Math.max(1, endPage - maxPages + 1);
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                pageButtons += `<button class="pagination-btn ${i === page ? 'active' : ''}" onclick="loadData(${i})">${i}</button>`;
+            }
+
+            controls.innerHTML = `
+                <button class="pagination-btn" id="prevPageBtn" ${page <= 1 ? 'disabled' : ''} onclick="loadData(${page - 1})">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                ${pageButtons}
+                <button class="pagination-btn" id="nextPageBtn" ${page >= total_pages ? 'disabled' : ''} onclick="loadData(${page + 1})">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+        }
+
+        // 查看详情
+        function viewDetail(id) {
+            window.location.href = `data_detail.html?id=${id}`;
+        }
+
+        // 查询按钮
+        document.getElementById('queryBtn')?.addEventListener('click', function() {
+            currentPage = 1;
+            loadData(1);
+        });
+
+        // 重置按钮
+        document.getElementById('resetBtn')?.addEventListener('click', function() {
+            const hotelNameInput = document.getElementById('hotelNameInput');
+            if (hotelNameInput) hotelNameInput.value = '';
+            
+            const platformSelect = document.getElementById('platformSelect');
+            if (platformSelect) platformSelect.value = '';
+            
+            const regionSelect = document.getElementById('regionSelect');
+            if (regionSelect) regionSelect.value = '';
+            
+            const starSelect = document.getElementById('starSelect');
+            if (starSelect) starSelect.value = '';
+            
+            const minRatingInput = document.getElementById('minRatingInput');
+            if (minRatingInput) minRatingInput.value = '';
+            
+            const maxRatingInput = document.getElementById('maxRatingInput');
+            if (maxRatingInput) maxRatingInput.value = '';
+            
+            const minPriceInput = document.getElementById('minPriceInput');
+            if (minPriceInput) minPriceInput.value = '';
+            
+            const maxPriceInput = document.getElementById('maxPriceInput');
+            if (maxPriceInput) maxPriceInput.value = '';
+            
+            const startDateInput = document.getElementById('startDateInput');
+            if (startDateInput) startDateInput.value = '';
+            
+            const endDateInput = document.getElementById('endDateInput');
+            if (endDateInput) endDateInput.value = '';
+            
+            currentPage = 1;
+            loadData(1);
+            showToast('筛选条件已重置', 'info');
+        });
+
+        // 排序功能
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.addEventListener('click', function() {
+                const text = this.textContent.trim();
+                if (text.includes('酒店名称')) {
+                    currentOrderBy = 'hotel_name';
+                } else if (text.includes('点评分数')) {
+                    currentOrderBy = 'rating_score';
+                } else if (text.includes('起价')) {
+                    currentOrderBy = 'min_price';
+                }
+                currentOrderDesc = !currentOrderDesc;
+                loadData(currentPage);
+            });
+        });
+
+        // 页面加载时自动加载数据
+        window.addEventListener('DOMContentLoaded', async function() {
+            const user = await loadCurrentUser();
+            if (!user) return;
+            loadData(1);
+        });
+
+        // 表格行点击跳转详情
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.style.cursor = 'pointer';
+            row.addEventListener('click', function(e) {
+                if (!e.target.closest('button, input')) {
+                    window.location.href = 'data_detail.html';
+                }
+            });
+        });
+
+        // 导出按钮
+        document.querySelectorAll('button').forEach(btn => {
+            if (btn.textContent.includes('导出')) {
+                btn.addEventListener('click', function() {
+                    showToast('导出功能待实现', 'info');
+                });
+            }
+        });
+
+        // 分页按钮
+        document.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (!this.disabled) {
+                    document.querySelectorAll('.pagination-btn').forEach(b => b.classList.remove('active'));
+                    if (!this.querySelector('i')) {
+                        this.classList.add('active');
+                    }
+                    showToast('分页功能待实现', 'info');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

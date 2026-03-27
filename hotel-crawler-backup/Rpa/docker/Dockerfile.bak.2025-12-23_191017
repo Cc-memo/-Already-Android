@@ -1,0 +1,30 @@
+FROM python:3.11-slim-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONUNBUFFERED=1 \
+    CHROME_BIN=/usr/bin/chromium \
+    HEADLESS=1
+
+RUN set -eux; \
+    rm -f /etc/apt/apt.conf.d/docker-clean /etc/apt/apt.conf.d/docker-gzip-indexes || true; \
+    rm -f /etc/apt/sources.list.d/* || true; \
+    printf '%s\n' \
+      'deb [trusted=yes] https://mirrors.aliyun.com/debian bookworm main contrib non-free non-free-firmware' \
+      'deb [trusted=yes] https://mirrors.aliyun.com/debian bookworm-updates main contrib non-free non-free-firmware' \
+      'deb [trusted=yes] https://mirrors.aliyun.com/debian-security bookworm-security main contrib non-free non-free-firmware' \
+      > /etc/apt/sources.list; \
+    apt-get clean; \
+    rm -rf /var/lib/apt/lists/*; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+      ca-certificates \
+      chromium \
+      chromium-driver \
+      fonts-liberation; \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+WORKDIR /app
+COPY requirements.txt /app/requirements.txt
+RUN python -m pip install --no-cache-dir -r /app/requirements.txt
+COPY . /app
+CMD ["sleep", "infinity"]

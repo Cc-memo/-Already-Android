@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务中心 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #F0F2F5;
+            color: #262626;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #d4af37;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .menu-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1890FF;
+            text-decoration: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            padding: 8px 24px;
+            background: #1890FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-item label {
+            font-size: 14px;
+            color: #262626;
+            white-space: nowrap;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            padding: 6px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .btn-secondary {
+            padding: 6px 16px;
+            background: white;
+            color: #262626;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-secondary:hover {
+            border-color: #1890FF;
+            color: #1890FF;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #FAFAFA;
+        }
+
+        th {
+            padding: 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            color: #262626;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        td {
+            padding: 16px;
+            font-size: 14px;
+            color: #595959;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        tbody tr:hover {
+            background: #F5F5F5;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #FFF7E6;
+            color: #FAAD14;
+        }
+
+        .status-running {
+            background: #E6F7FF;
+            color: #1890FF;
+        }
+
+        .status-completed {
+            background: #F6FFED;
+            color: #52C41A;
+        }
+
+        .status-failed {
+            background: #FFF1F0;
+            color: #F5222D;
+        }
+
+        .status-paused {
+            background: #F5F5F5;
+            color: #8C8C8C;
+        }
+
+        .progress-bar {
+            width: 100px;
+            height: 8px;
+            background: #F0F0F0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #1890FF;
+            transition: width 0.3s;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            padding: 4px 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: #1890FF;
+            font-size: 14px;
+        }
+
+        .btn-icon:hover {
+            color: #40a9ff;
+        }
+
+        .pagination {
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            border-top: 1px solid #F0F0F0;
+        }
+
+        .pagination-info {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .pagination-btn {
+            padding: 4px 12px;
+            border: 1px solid #D9D9D9;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .pagination-btn:hover {
+            border-color: #1890FF;
+            color: #1890FF;
+        }
+
+        .pagination-btn.active {
+            background: #1890FF;
+            color: white;
+            border-color: #1890FF;
+        }
+
+        /* 消息提示样式 */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-width: 300px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: #F6FFED;
+            color: #52C41A;
+            border: 1px solid #B7EB8F;
+        }
+
+        .toast.error {
+            background: #FFF1F0;
+            color: #F5222D;
+            border: 1px solid #FFCCC7;
+        }
+
+        .toast.info {
+            background: #E6F7FF;
+            color: #1890FF;
+            border: 1px solid #91D5FF;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background: #F5F5F5;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item active">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html">首页</a> / <span>任务中心</span>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="color: #8C8C8C; cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down" style="color: #8C8C8C;"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="page-header">
+                    <div class="page-title">任务中心</div>
+                    <button class="btn-primary" onclick="window.location.href='crawl-create.html'">
+                        <i class="fas fa-plus"></i>
+                        新建任务
+                    </button>
+                </div>
+
+                <div class="filter-bar">
+                    <div class="filter-item">
+                        <label>任务状态：</label>
+                        <select>
+                            <option>全部</option>
+                            <option>等待中</option>
+                            <option>爬取中</option>
+                            <option>已完成</option>
+                            <option>已失败</option>
+                            <option>已暂停</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>目标平台：</label>
+                        <select>
+                            <option>全部平台</option>
+                            <option>美团</option>
+                            <option>携程</option>
+                            <option>飞猪</option>
+                            <option>高德</option>
+                        </select>
+                    </div>
+                    <div class="filter-item">
+                        <label>时间范围：</label>
+                        <input type="date">
+                        <span>至</span>
+                        <input type="date">
+                    </div>
+                    <div class="filter-item">
+                        <input type="text" placeholder="搜索酒店名称..." style="width: 200px;">
+                    </div>
+                    <button class="btn-secondary">
+                        <i class="fas fa-search"></i>
+                        查询
+                    </button>
+                    <button class="btn-secondary">
+                        <i class="fas fa-redo"></i>
+                        重置
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox"></th>
+                                <th>任务ID</th>
+                                <th>酒店名称</th>
+                                <th>目标平台</th>
+                                <th>任务类型</th>
+                                <th>创建时间</th>
+                                <th>执行时间</th>
+                                <th>状态</th>
+                                <th>进度</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 数据将通过 JavaScript 动态加载 -->
+                        </tbody>
+                    </table>
+                    <div class="pagination">
+                        <div class="pagination-info">共 125 条记录，第 1/13 页</div>
+                        <div class="pagination-buttons">
+                            <button class="pagination-btn">上一页</button>
+                            <button class="pagination-btn active">1</button>
+                            <button class="pagination-btn">2</button>
+                            <button class="pagination-btn">3</button>
+                            <button class="pagination-btn">4</button>
+                            <button class="pagination-btn">5</button>
+                            <button class="pagination-btn">下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示容器 -->
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUser = null;
+        const API_BASE = window.location.origin + '/api';
+
+        // 消息提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentUser = result.data;
+                    // 更新页面上的用户名显示
+                    if (usernameEl) {
+                        usernameEl.textContent = currentUser.real_name || currentUser.username || '管理员';
+                    }
+                    return currentUser;
+                } else {
+                    // API返回失败，显示默认值
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                // 网络错误或其他错误，显示默认值
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenu && userDropdown) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+        }
+
+        // 通知图标点击
+        const notificationIcon = document.getElementById('notificationIcon');
+        if (notificationIcon) {
+            notificationIcon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showToast('您有3条未读通知', 'info');
+            });
+        }
+
+        // 页面初始化 - 加载用户信息
+        loadCurrentUser();
+
+        // 侧边栏菜单跳转
+        const menuItems = document.querySelectorAll('.menu-item');
+        const menuRoutes = {
+            '首页': 'dashboard.html',
+            '任务中心': 'crawl-tasks.html',
+            '数据管理': 'data_query.html',
+            '数据分析': 'data_analysis.html',
+            '数据导出': 'data_export.html',
+            '用户管理': 'user_management.html',
+            '系统设置': 'system_settings.html'
+        };
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const menuText = this.querySelector('span').textContent;
+                const route = menuRoutes[menuText];
+                if (route && route !== window.location.pathname.split('/').pop()) {
+                    window.location.href = route;
+                }
+            });
+        });
+
+        // 新建任务按钮
+        document.querySelector('.btn-primary').addEventListener('click', function() {
+            window.location.href = 'create_task.html';
+        });
+
+        // 查询按钮
+        document.querySelectorAll('.btn-secondary')[0].addEventListener('click', function() {
+            showToast('查询功能待实现', 'info');
+        });
+
+        // 重置按钮
+        document.querySelectorAll('.btn-secondary')[1].addEventListener('click', function() {
+            document.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            document.querySelectorAll('input[type="date"], input[type="text"]').forEach(input => input.value = '');
+            showToast('筛选条件已重置', 'info');
+        });
+
+        // 表格行点击跳转详情
+        document.querySelectorAll('tbody tr').forEach(row => {
+            row.addEventListener('click', function(e) {
+                // 如果点击的是复选框或操作按钮，不跳转
+                if (e.target.type === 'checkbox' || e.target.closest('.action-buttons')) {
+                    return;
+                }
+                window.location.href = 'task_detail.html';
+            });
+        });
+
+        // 操作按钮事件
+        document.querySelectorAll('.btn-icon').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const title = this.getAttribute('title');
+                
+                if (title === '查看详情') {
+                    window.location.href = 'task_detail.html';
+                } else if (title === '暂停') {
+                    if (confirm('确定要暂停此任务吗？')) {
+                        showToast('任务已暂停', 'success');
+                    }
+                } else if (title === '继续') {
+                    showToast('任务已继续', 'success');
+                } else if (title === '取消') {
+                    if (confirm('确定要取消此任务吗？')) {
+                        showToast('任务已取消', 'success');
+                    }
+                } else if (title === '重试') {
+                    if (confirm('确定要重试此任务吗？')) {
+                        showToast('任务已重新开始', 'success');
+                    }
+                }
+            });
+        });
+
+        // 分页按钮
+        document.querySelectorAll('.pagination-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.textContent === '上一页' || this.textContent === '下一页') {
+                    showToast('分页功能待实现', 'info');
+                } else {
+                    document.querySelectorAll('.pagination-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                }
+            });
+        });
+
+        // 全选复选框
+        document.querySelector('thead input[type="checkbox"]').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('tbody input[type="checkbox"]').forEach(cb => {
+                cb.checked = checked;
+            });
+        });
+    </script>
+</body>
+</html>
+

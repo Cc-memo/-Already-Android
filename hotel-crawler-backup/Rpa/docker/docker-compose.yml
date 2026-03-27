@@ -1,0 +1,44 @@
+version: "2.4"
+
+services:
+  selenium:
+    image: selenium/standalone-chromium:latest
+    container_name: hotel-crawler-selenium
+    shm_size: 2g
+    ports:
+      - "4444:4444"
+      - "5900:5900"
+    environment:
+      SE_NODE_MAX_SESSIONS: "2"
+      SE_NODE_OVERRIDE_MAX_SESSIONS: "true"
+      JAVA_OPTS: "-Xmx1g"
+    security_opt:
+      - seccomp=unconfined
+    restart: unless-stopped
+
+  app:
+    image: hotel-crawler:latest
+    container_name: hotel-crawler-app
+    working_dir: /app
+    command: ["sleep","infinity"]
+    depends_on:
+      - selenium
+    volumes:
+      - ./:/app
+      - ./db_config.json:/app/db_config.json:ro
+
+    pids_limit: 4096
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 32768
+        hard: 65535
+
+    # 关键：放开 seccomp，解决 clone3 导致的 “can't start new thread”
+    security_opt:
+      - seccomp=unconfined
+
+    environment:
+      SELENIUM_REMOTE_URL: http://selenium:4444/wd/hub
+      PYTHONUNBUFFERED: "1"
+    restart: unless-stopped

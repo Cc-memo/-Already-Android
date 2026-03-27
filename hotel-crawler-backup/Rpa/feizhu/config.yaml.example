@@ -1,0 +1,29 @@
+# 飞猪酒店登录配置文件示例
+# 复制此文件为 config.yaml 并修改配置
+
+# 登录配置
+login:
+  url: "https://hotel.fliggy.com/ebooking/login.htm#/?redirectURL=https%3A%2F%2Fhotel.fliggy.com%2Febooking%2FhotelBaseInfoUv.htm"
+  use_cookies: true
+  cookies_file: "feizhu_hotel_cookies.pkl"
+
+# 浏览器配置
+browser:
+  headless: false      # true=无头模式, false=显示浏览器
+  slow_mo: 500         # 操作延迟（毫秒），模拟人工操作
+  timeout: 30000       # 页面加载超时（毫秒）
+  use_persistent: true # true=使用持久化上下文（非无痕模式，会保存登录态）, false=无痕模式
+  # 使用本地Chrome和用户数据目录（强烈推荐！可以降低被检测概率）
+  use_local_chrome: true  # true=使用本地Chrome用户数据（推荐）, false=使用Playwright自带的Chromium
+  chrome_executable: "D:\\yingyong\\tool\\chrome-win\\chrome.exe"  # 本地Chrome路径（可选）
+  user_data_dir: "C:\\Users\\你的用户名\\AppData\\Local\\Google\\Chrome\\User Data"  # 本地Chrome用户数据目录（推荐使用真实Chrome的用户数据）
+  profile_directory: "Default"  # 配置文件目录
+  window_size:
+    width: 1920
+    height: 1080
+
+# 日志配置
+logging:
+  screenshot_on_error: true
+  screenshot_dir: "screenshots"
+  log_level: "INFO"

@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据分析 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f0;
+            color: #2c3e50;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #d4af37;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 16px 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e8e8e3;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1a365d;
+            text-decoration: none;
+        }
+        
+        .breadcrumb a:hover {
+            color: #d4af37;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .analysis-tabs {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .tab-btn {
+            padding: 8px 24px;
+            border: none;
+            background: transparent;
+            color: #8C8C8C;
+            cursor: pointer;
+            font-size: 14px;
+            border-bottom: 2px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: #1a365d;
+            border-bottom-color: #d4af37;
+            font-weight: 500;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+            transition: all 0.3s ease;
+        }
+        
+        .chart-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 16px rgba(26, 54, 93, 0.12);
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(26, 54, 93, 0.15);
+        }
+
+        .stat-label {
+            color: #8C8C8C;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: 600;
+            color: #262626;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-width: 300px;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: #F6FFED;
+            color: #52C41A;
+            border: 1px solid #B7EB8F;
+        }
+
+        .toast.info {
+            background: #E6F7FF;
+            color: #1890FF;
+            border: 1px solid #91D5FF;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='crawl-tasks.html'">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_query.html'">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item active">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_export.html'">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='user_management.html'">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='system_settings.html'">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html">首页</a> / <span>数据分析</span>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="color: #8C8C8C; cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down" style="color: #8C8C8C;"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="page-header">
+                    <div class="page-title">数据分析</div>
+                </div>
+
+                <!-- 分析筛选条件 -->
+                <div class="chart-card" style="margin-bottom: 24px;">
+                    <div class="chart-title">分析维度筛选</div>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; padding: 16px 0;">
+                        <div class="form-group">
+                            <label style="display: block; font-size: 14px; color: #262626; margin-bottom: 8px;">区域</label>
+                            <select id="filterRegion" style="width: 100%; padding: 8px 12px; border: 1px solid #D9D9D9; border-radius: 4px; font-size: 14px;" onchange="updateAnalysis()">
+                                <option value="">全部区域</option>
+                                <option value="beijing">北京</option>
+                                <option value="shanghai">上海</option>
+                                <option value="guangzhou">广州</option>
+                                <option value="shenzhen">深圳</option>
+                                <option value="hangzhou">杭州</option>
+                                <option value="chengdu">成都</option>
+                                <option value="nanjing">南京</option>
+                                <option value="wuhan">武汉</option>
+                                <option value="xian">西安</option>
+                                <option value="suzhou">苏州</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: block; font-size: 14px; color: #262626; margin-bottom: 8px;">星级</label>
+                            <select id="filterStar" style="width: 100%; padding: 8px 12px; border: 1px solid #D9D9D9; border-radius: 4px; font-size: 14px;" onchange="updateAnalysis()">
+                                <option value="">全部星级</option>
+                                <option value="5">五星级</option>
+                                <option value="4">四星级</option>
+                                <option value="3">三星级</option>
+                                <option value="2">二星级</option>
+                                <option value="1">一星级</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: block; font-size: 14px; color: #262626; margin-bottom: 8px;">房间类型</label>
+                            <select id="filterRoomType" style="width: 100%; padding: 8px 12px; border: 1px solid #D9D9D9; border-radius: 4px; font-size: 14px;" onchange="updateAnalysis()">
+                                <option value="">全部房型</option>
+                                <option value="standard">标准间</option>
+                                <option value="deluxe">豪华间</option>
+                                <option value="suite">套房</option>
+                                <option value="presidential">总统套房</option>
+                                <option value="business">商务间</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label style="display: block; font-size: 14px; color: #262626; margin-bottom: 8px;">平台</label>
+                            <select id="filterPlatform" style="width: 100%; padding: 8px 12px; border: 1px solid #D9D9D9; border-radius: 4px; font-size: 14px;" onchange="updateAnalysis()">
+                                <option value="">全部平台</option>
+                                <option value="meituan">美团</option>
+                                <option value="ctrip">携程</option>
+                                <option value="fliggy">飞猪</option>
+                                <option value="gaode">高德</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">平均价格</div>
+                        <div class="stat-value" id="avgPrice">¥588</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">平均评分</div>
+                        <div class="stat-value" id="avgRating">4.6</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">总点评数</div>
+                        <div class="stat-value" id="totalReviews">12,456</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">酒店数量</div>
+                        <div class="stat-value" id="hotelCount">234</div>
+                    </div>
+                </div>
+
+                <div class="analysis-tabs">
+                    <button class="tab-btn active" onclick="switchTab('price')">价格分析</button>
+                    <button class="tab-btn" onclick="switchTab('rating')">点评分析</button>
+                    <button class="tab-btn" onclick="switchTab('booking')">预订量分析</button>
+                    <button class="tab-btn" onclick="switchTab('region')">区域分析</button>
+                    <button class="tab-btn" onclick="switchTab('star')">星级分析</button>
+                    <button class="tab-btn" onclick="switchTab('room')">房间类型分析</button>
+                </div>
+
+                <div id="priceTab" class="tab-content active">
+                    <div class="chart-card">
+                        <div class="chart-title">平台价格对比</div>
+                        <div class="chart-container">
+                            <canvas id="priceCompareChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">价格趋势分析</div>
+                        <div class="chart-container">
+                            <canvas id="priceTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="ratingTab" class="tab-content">
+                    <div class="chart-card">
+                        <div class="chart-title">点评分数趋势</div>
+                        <div class="chart-container">
+                            <canvas id="ratingTrendChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">平台评分对比</div>
+                        <div class="chart-container">
+                            <canvas id="ratingCompareChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bookingTab" class="tab-content">
+                    <div class="chart-card">
+                        <div class="chart-title">平台预订量对比</div>
+                        <div class="chart-container">
+                            <canvas id="bookingCompareChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">预订量趋势</div>
+                        <div class="chart-container">
+                            <canvas id="bookingTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="regionTab" class="tab-content">
+                    <div class="chart-card">
+                        <div class="chart-title">各区域平均价格对比</div>
+                        <div class="chart-container">
+                            <canvas id="regionPriceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各区域酒店数量分布</div>
+                        <div class="chart-container">
+                            <canvas id="regionCountChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各区域平均评分</div>
+                        <div class="chart-container">
+                            <canvas id="regionRatingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="starTab" class="tab-content">
+                    <div class="chart-card">
+                        <div class="chart-title">各星级平均价格对比</div>
+                        <div class="chart-container">
+                            <canvas id="starPriceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各星级酒店数量分布</div>
+                        <div class="chart-container">
+                            <canvas id="starCountChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各星级平均评分</div>
+                        <div class="chart-container">
+                            <canvas id="starRatingChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="roomTab" class="tab-content">
+                    <div class="chart-card">
+                        <div class="chart-title">各房间类型平均价格对比</div>
+                        <div class="chart-container">
+                            <canvas id="roomPriceChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各房间类型预订量对比</div>
+                        <div class="chart-container">
+                            <canvas id="roomBookingChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="chart-card">
+                        <div class="chart-title">各房间类型库存分布</div>
+                        <div class="chart-container">
+                            <canvas id="roomStockChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentUser = null;
+        const API_BASE = window.location.origin + '/api';
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // 加载用户头像到右上角
+        function loadUserAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                const headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.user-avatar');
+                
+                if (headerAvatar) {
+                    if (avatarData) {
+                        headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+                    } else {
+                        headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    currentUser = result.data;
+                    // 更新页面上的用户名显示
+                    if (usernameEl) {
+                        usernameEl.textContent = currentUser.real_name || currentUser.username || '管理员';
+                    }
+                    // 加载用户头像
+                    loadUserAvatar(currentUser.id);
+                    return currentUser;
+                } else {
+                    // API返回失败，显示默认值
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                // 网络错误或其他错误，显示默认值
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenu && userDropdown) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+        }
+
+        // 通知图标点击
+        const notificationIcon = document.getElementById('notificationIcon');
+        if (notificationIcon) {
+            notificationIcon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showToast('您有3条未读通知', 'info');
+            });
+        }
+
+        // 页面初始化 - 加载用户信息
+        loadCurrentUser();
+
+        let charts = {};
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+            updateAnalysis();
+        }
+
+        const API_BASE = window.location.origin + '/api';
+        let analysisData = null;
+
+        async function updateAnalysis() {
+            const region = document.getElementById('filterRegion')?.value || '';
+            const star = document.getElementById('filterStar')?.value || '';
+            const roomType = document.getElementById('filterRoomType')?.value || '';
+            const platform = document.getElementById('filterPlatform')?.value || '';
+
+            try {
+                // 构建查询参数
+                const params = new URLSearchParams();
+                if (region) params.append('region', region);
+                if (star) params.append('star_level', star);
+                if (platform) params.append('platform', platform);
+
+                // 调用API获取数据
+                const response = await fetch(`${API_BASE}/hotels/analysis?${params.toString()}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    analysisData = result.data;
+                    // 更新统计数据
+                    updateStats(result.data.stats);
+                    // 更新图表
+                    updateCharts(result.data);
+                } else {
+                    showToast('获取分析数据失败: ' + (result.error || '未知错误'), 'error');
+                }
+            } catch (error) {
+                console.error('获取分析数据失败:', error);
+                showToast('获取分析数据失败: ' + error.message, 'error');
+            }
+        }
+
+        function updateStats(stats) {
+            if (!stats) return;
+            
+            document.getElementById('avgPrice').textContent = '¥' + (stats.avg_price || 0);
+            document.getElementById('avgRating').textContent = (stats.avg_rating || 0).toFixed(1);
+            document.getElementById('totalReviews').textContent = (stats.total_reviews || 0).toLocaleString();
+            document.getElementById('hotelCount').textContent = stats.hotel_count || 0;
+        }
+
+        function updateCharts(data) {
+            if (!data) return;
+            
+            // 区域分析图表
+            if (document.getElementById('regionPriceChart')) {
+                if (charts.regionPrice) charts.regionPrice.destroy();
+                const regionLabels = Object.keys(data.region_prices || {});
+                const regionPriceValues = Object.values(data.region_prices || {});
+                charts.regionPrice = new Chart(document.getElementById('regionPriceChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: regionLabels.length > 0 ? regionLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均价格',
+                            data: regionPriceValues.length > 0 ? regionPriceValues : [0],
+                            backgroundColor: '#1890FF'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('regionCountChart')) {
+                if (charts.regionCount) charts.regionCount.destroy();
+                const regionCountLabels = Object.keys(data.region_counts || {});
+                const regionCountValues = Object.values(data.region_counts || {});
+                const colors = ['#1890FF', '#52C41A', '#FAAD14', '#F5222D', '#722ED1', '#13C2C2', '#8C8C8C', '#FF7A45', '#2FC25B', '#FACC14'];
+                charts.regionCount = new Chart(document.getElementById('regionCountChart'), {
+                    type: 'pie',
+                    data: {
+                        labels: regionCountLabels.length > 0 ? regionCountLabels : ['暂无数据'],
+                        datasets: [{
+                            data: regionCountValues.length > 0 ? regionCountValues : [0],
+                            backgroundColor: colors.slice(0, Math.max(regionCountLabels.length, 1))
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('regionRatingChart')) {
+                if (charts.regionRating) charts.regionRating.destroy();
+                // 区域评分可以从区域价格数据中推导，或者单独查询
+                const regionLabels = Object.keys(data.region_prices || {});
+                // 暂时使用区域价格图表的数据，如果需要可以单独查询评分
+                charts.regionRating = new Chart(document.getElementById('regionRatingChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: regionLabels.length > 0 ? regionLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均评分',
+                            data: regionLabels.map(() => data.stats?.avg_rating || 0),
+                            backgroundColor: '#52C41A'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // 星级分析图表
+            if (document.getElementById('starPriceChart')) {
+                if (charts.starPrice) charts.starPrice.destroy();
+                const starLabels = Object.keys(data.star_prices || {});
+                const starPriceValues = Object.values(data.star_prices || {});
+                charts.starPrice = new Chart(document.getElementById('starPriceChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: starLabels.length > 0 ? starLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均价格',
+                            data: starPriceValues.length > 0 ? starPriceValues : [0],
+                            backgroundColor: '#1890FF'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('starCountChart')) {
+                if (charts.starCount) charts.starCount.destroy();
+                const starCountLabels = Object.keys(data.star_counts || {});
+                const starCountValues = Object.values(data.star_counts || {});
+                const colors = ['#1890FF', '#52C41A', '#FAAD14', '#F5222D', '#8C8C8C'];
+                charts.starCount = new Chart(document.getElementById('starCountChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: starCountLabels.length > 0 ? starCountLabels : ['暂无数据'],
+                        datasets: [{
+                            data: starCountValues.length > 0 ? starCountValues : [0],
+                            backgroundColor: colors.slice(0, Math.max(starCountLabels.length, 1))
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('starRatingChart')) {
+                if (charts.starRating) charts.starRating.destroy();
+                const starLabels = Object.keys(data.star_prices || {});
+                charts.starRating = new Chart(document.getElementById('starRatingChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: starLabels.length > 0 ? starLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均评分',
+                            data: starLabels.map(() => data.stats?.avg_rating || 0),
+                            backgroundColor: '#52C41A'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            // 房间类型分析图表
+            if (document.getElementById('roomPriceChart')) {
+                if (charts.roomPrice) charts.roomPrice.destroy();
+                charts.roomPrice = new Chart(document.getElementById('roomPriceChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['标准间', '豪华间', '套房', '总统套房', '商务间'],
+                        datasets: [{
+                            label: '平均价格',
+                            data: [488, 688, 1288, 2888, 588],
+                            backgroundColor: '#1890FF'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('roomBookingChart')) {
+                if (charts.roomBooking) charts.roomBooking.destroy();
+                charts.roomBooking = new Chart(document.getElementById('roomBookingChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['标准间', '豪华间', '套房', '总统套房', '商务间'],
+                        datasets: [{
+                            label: '预订量',
+                            data: [456, 234, 89, 12, 178],
+                            backgroundColor: '#FAAD14'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+
+            if (document.getElementById('roomStockChart')) {
+                if (charts.roomStock) charts.roomStock.destroy();
+                charts.roomStock = new Chart(document.getElementById('roomStockChart'), {
+                    type: 'line',
+                    data: {
+                        labels: ['标准间', '豪华间', '套房', '总统套房', '商务间'],
+                        datasets: [{
+                            label: '平均库存',
+                            data: [45, 28, 12, 3, 32],
+                            borderColor: '#722ED1',
+                            backgroundColor: 'rgba(114, 46, 209, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        // 初始化时更新分析
+        updateAnalysis().then(() => {
+            // 价格对比图表（使用API数据）
+            if (analysisData && document.getElementById('priceCompareChart')) {
+                const platformLabels = Object.keys(analysisData.platform_prices || {});
+                const platformPriceValues = Object.values(analysisData.platform_prices || {});
+                new Chart(document.getElementById('priceCompareChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: platformLabels.length > 0 ? platformLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均价格',
+                            data: platformPriceValues.length > 0 ? platformPriceValues : [0],
+                            backgroundColor: '#1890FF'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+
+        // 价格趋势图表（使用API数据）
+        updateAnalysis().then(() => {
+            if (analysisData && document.getElementById('priceTrendChart')) {
+                const trendData = analysisData.price_trend || [];
+                const trendLabels = trendData.map(item => {
+                    const date = new Date(item.date);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                });
+                const trendPrices = trendData.map(item => item.price);
+                
+                new Chart(document.getElementById('priceTrendChart'), {
+                    type: 'line',
+                    data: {
+                        labels: trendLabels.length > 0 ? trendLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '价格',
+                            data: trendPrices.length > 0 ? trendPrices : [0],
+                            borderColor: '#1890FF',
+                            backgroundColor: 'rgba(24, 144, 255, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+
+        // 点评趋势图表
+        new Chart(document.getElementById('ratingTrendChart'), {
+            type: 'line',
+            data: {
+                labels: ['1/9', '1/10', '1/11', '1/12', '1/13', '1/14', '1/15'],
+                datasets: [{
+                    label: '评分',
+                    data: [4.5, 4.6, 4.6, 4.7, 4.6, 4.6, 4.6],
+                    borderColor: '#52C41A',
+                    backgroundColor: 'rgba(82, 196, 26, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // 平台评分对比（使用API数据）
+        updateAnalysis().then(() => {
+            if (analysisData && document.getElementById('ratingCompareChart')) {
+                const platformLabels = Object.keys(analysisData.platform_ratings || {});
+                const platformRatingValues = Object.values(analysisData.platform_ratings || {});
+                new Chart(document.getElementById('ratingCompareChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: platformLabels.length > 0 ? platformLabels : ['暂无数据'],
+                        datasets: [{
+                            label: '平均评分',
+                            data: platformRatingValues.length > 0 ? platformRatingValues : [0],
+                            backgroundColor: '#52C41A'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        });
+
+        // 预订量对比
+        new Chart(document.getElementById('bookingCompareChart'), {
+            type: 'bar',
+            data: {
+                labels: ['美团', '携程', '飞猪', '高德'],
+                datasets: [{
+                    label: '预订量',
+                    data: [234, 189, 156, 98],
+                    backgroundColor: '#FAAD14'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+
+        // 预订量趋势
+        new Chart(document.getElementById('bookingTrendChart'), {
+            type: 'line',
+            data: {
+                labels: ['1/9', '1/10', '1/11', '1/12', '1/13', '1/14', '1/15'],
+                datasets: [{
+                    label: '预订量',
+                    data: [120, 150, 180, 160, 200, 175, 190],
+                    borderColor: '#FAAD14',
+                    backgroundColor: 'rgba(250, 173, 20, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    </script>
+</body>
+</html>
+

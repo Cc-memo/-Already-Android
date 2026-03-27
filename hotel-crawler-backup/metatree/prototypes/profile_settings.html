@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人设置 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #F0F2F5;
+            color: #262626;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #d4af37;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .menu-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1890FF;
+            text-decoration: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .settings-panel {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #262626;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .form-group .hint {
+            font-size: 12px;
+            color: #8C8C8C;
+            margin-top: 4px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .avatar-upload {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: #1890FF;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 32px;
+            border: 2px solid #D9D9D9;
+        }
+
+        .avatar-preview img {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .btn-upload {
+            padding: 8px 16px;
+            background: white;
+            color: #1890FF;
+            border: 1px solid #1890FF;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-upload:hover {
+            background: #E6F7FF;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 22px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #1890FF;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .switch-label {
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .btn-primary {
+            padding: 10px 24px;
+            background: #1890FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        .btn-secondary {
+            padding: 10px 24px;
+            background: white;
+            color: #262626;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: #1890FF;
+            color: #1890FF;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid #F0F0F0;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-width: 300px;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: #F6FFED;
+            color: #52C41A;
+            border: 1px solid #B7EB8F;
+        }
+
+        .toast.info {
+            background: #E6F7FF;
+            color: #1890FF;
+            border: 1px solid #91D5FF;
+        }
+
+        .toast.error {
+            background: #FFF1F0;
+            color: #F5222D;
+            border: 1px solid #FFCCC7;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='crawl-tasks.html'">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_query.html'">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_analysis.html'">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_export.html'">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='user_management.html'">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='system_settings.html'">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html">首页</a> / <span>个人设置</span>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="page-header">
+                    <div class="page-title">个人设置</div>
+                </div>
+
+                <form id="profileForm">
+                    <!-- 基本信息 -->
+                    <div class="settings-panel">
+                        <div class="section-title">基本信息</div>
+                        <div class="form-group">
+                            <label>头像</label>
+                            <div class="avatar-upload">
+                                <div class="avatar-preview" id="avatarPreview">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <div>
+                                    <button type="button" class="btn-upload" onclick="document.getElementById('avatarInput').click()">
+                                        <i class="fas fa-upload"></i> 上传头像
+                                    </button>
+                                    <input type="file" id="avatarInput" accept="image/*" style="display: none;" onchange="handleAvatarUpload(event)">
+                                    <div class="hint">支持 JPG、PNG 格式，大小不超过 2MB</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" id="username" value="admin" readonly>
+                                <div class="hint">用户名不可修改</div>
+                            </div>
+                            <div class="form-group">
+                                <label>姓名</label>
+                                <input type="text" id="realName" value="管理员" placeholder="请输入真实姓名">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>邮箱</label>
+                                <input type="email" id="email" value="admin@example.com" placeholder="请输入邮箱地址">
+                            </div>
+                            <div class="form-group">
+                                <label>手机号</label>
+                                <input type="tel" id="phone" value="13800138000" placeholder="请输入手机号">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>个人简介</label>
+                            <textarea id="bio" placeholder="请输入个人简介">系统管理员</textarea>
+                        </div>
+                    </div>
+
+                    <!-- 账户安全 -->
+                    <div class="settings-panel">
+                        <div class="section-title">账户安全</div>
+                        <div class="form-group">
+                            <label>当前密码</label>
+                            <input type="password" id="currentPassword" placeholder="请输入当前密码">
+                            <div class="hint">修改密码时需要验证当前密码</div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>新密码</label>
+                                <input type="password" id="newPassword" placeholder="请输入新密码">
+                            </div>
+                            <div class="form-group">
+                                <label>确认新密码</label>
+                                <input type="password" id="confirmPassword" placeholder="请再次输入新密码">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="hint">密码长度至少8位，建议包含字母、数字和特殊字符</div>
+                            <div id="passwordStrength" style="margin-top: 8px; display: none;">
+                                <div style="display: flex; gap: 4px; margin-bottom: 4px;">
+                                    <div id="strengthBar1" style="flex: 1; height: 4px; background: #D9D9D9; border-radius: 2px;"></div>
+                                    <div id="strengthBar2" style="flex: 1; height: 4px; background: #D9D9D9; border-radius: 2px;"></div>
+                                    <div id="strengthBar3" style="flex: 1; height: 4px; background: #D9D9D9; border-radius: 2px;"></div>
+                                    <div id="strengthBar4" style="flex: 1; height: 4px; background: #D9D9D9; border-radius: 2px;"></div>
+                                </div>
+                                <div id="strengthText" style="font-size: 12px; color: #8C8C8C;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 偏好设置 -->
+                    <div class="settings-panel">
+                        <div class="section-title">偏好设置</div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>语言</label>
+                                <select id="language">
+                                    <option value="zh-CN" selected>简体中文</option>
+                                    <option value="zh-TW">繁体中文</option>
+                                    <option value="en-US">English</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>时区</label>
+                                <select id="timezone">
+                                    <option value="Asia/Shanghai" selected>Asia/Shanghai (UTC+8)</option>
+                                    <option value="Asia/Hong_Kong">Asia/Hong_Kong (UTC+8)</option>
+                                    <option value="Asia/Taipei">Asia/Taipei (UTC+8)</option>
+                                    <option value="UTC">UTC (UTC+0)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>每页显示条数</label>
+                                <select id="pageSize">
+                                    <option value="10">10 条</option>
+                                    <option value="20" selected>20 条</option>
+                                    <option value="50">50 条</option>
+                                    <option value="100">100 条</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>主题</label>
+                                <select id="theme">
+                                    <option value="light" selected>浅色</option>
+                                    <option value="dark">深色</option>
+                                    <option value="auto">跟随系统</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="switch-container">
+                                <label class="switch">
+                                    <input type="checkbox" id="emailNotification" checked>
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">邮件通知</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="switch-container">
+                                <label class="switch">
+                                    <input type="checkbox" id="smsNotification">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">短信通知</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="settings-panel">
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="resetForm()">重置</button>
+                            <button type="submit" class="btn-primary">保存设置</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 头像上传处理
+        function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (file.size > 2 * 1024 * 1024) {
+                showToast('图片大小不能超过 2MB', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const avatarData = e.target.result; // base64 数据
+                
+                // 更新个人设置页面的头像预览
+                const avatarPreview = document.getElementById('avatarPreview');
+                if (avatarPreview) {
+                    avatarPreview.innerHTML = `<img src="${avatarData}" alt="Avatar">`;
+                }
+                
+                // 立即更新右上角的头像
+                updateHeaderAvatar(avatarData);
+                
+                // 保存到 localStorage，使用用户ID作为key的一部分
+                try {
+                    // 先尝试从已加载的用户数据获取ID，如果没有则异步获取
+                    loadCurrentUser().then(user => {
+                        const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                        if (user && user.id) {
+                            userData[user.id] = avatarData;
+                            localStorage.setItem('user_avatar', JSON.stringify(userData));
+                        } else {
+                            // 如果没有用户ID，使用默认key
+                            userData['default'] = avatarData;
+                            localStorage.setItem('user_avatar', JSON.stringify(userData));
+                        }
+                    }).catch(error => {
+                        // 如果获取用户信息失败，使用默认key保存
+                        const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                        userData['default'] = avatarData;
+                        localStorage.setItem('user_avatar', JSON.stringify(userData));
+                    });
+                } catch (error) {
+                    console.error('保存头像失败:', error);
+                }
+                
+                showToast('头像上传成功', 'success');
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        // 加载保存的头像
+        function loadAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                
+                if (avatarData) {
+                    // 更新个人设置页面的头像预览
+                    const avatarPreview = document.getElementById('avatarPreview');
+                    if (avatarPreview) {
+                        avatarPreview.innerHTML = `<img src="${avatarData}" alt="Avatar">`;
+                    }
+                    
+                    // 更新右上角的头像
+                    updateHeaderAvatar(avatarData);
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+        
+        // 更新右上角的头像
+        function updateHeaderAvatar(avatarData) {
+            const headerAvatar = document.getElementById('headerUserAvatar');
+            if (headerAvatar && avatarData) {
+                headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+            } else if (headerAvatar && !avatarData) {
+                // 如果没有头像数据，恢复默认图标
+                headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+            }
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        userMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            userDropdown.classList.toggle('show');
+        });
+
+        document.addEventListener('click', function() {
+            userDropdown.classList.remove('show');
+        });
+
+        const API_BASE = window.location.origin + '/api';
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (usernameEl) {
+                        usernameEl.textContent = result.data.real_name || result.data.username || '管理员';
+                    }
+                    return result.data;
+                } else {
+                    // API返回失败，显示默认值
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                // 网络错误或其他错误，显示默认值
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 加载用户资料数据
+        async function loadProfileData() {
+            try {
+                const userData = await loadCurrentUser();
+                if (!userData) {
+                    return;
+                }
+
+                // 填充基本信息
+                document.getElementById('username').value = userData.username || '';
+                document.getElementById('realName').value = userData.real_name || '';
+                document.getElementById('email').value = userData.email || '';
+                document.getElementById('phone').value = userData.phone || '';
+                
+                // 加载保存的头像（传入用户ID）
+                loadAvatar(userData.id);
+
+                // 加载偏好设置
+                loadPreferences();
+                
+                // 应用已保存的主题（使用全局函数）
+                if (typeof window.loadAndApplyPreferences === 'function') {
+                    window.loadAndApplyPreferences();
+                } else {
+                    const prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
+                    if (prefs.theme) {
+                        applyTheme(prefs.theme);
+                    }
+                }
+            } catch (error) {
+                console.error('加载用户资料失败:', error);
+                showToast('加载用户资料失败', 'error');
+            }
+        }
+
+        // 加载偏好设置
+        function loadPreferences() {
+            try {
+                const prefs = JSON.parse(localStorage.getItem('user_preferences') || '{}');
+                
+                // 语言
+                if (prefs.language) {
+                    document.getElementById('language').value = prefs.language;
+                }
+                
+                // 时区
+                if (prefs.timezone) {
+                    document.getElementById('timezone').value = prefs.timezone;
+                }
+                
+                // 每页显示条数
+                if (prefs.pageSize) {
+                    document.getElementById('pageSize').value = prefs.pageSize;
+                }
+                
+                // 主题
+                if (prefs.theme) {
+                    document.getElementById('theme').value = prefs.theme;
+                }
+                
+                // 邮件通知
+                if (prefs.emailNotification !== undefined) {
+                    document.getElementById('emailNotification').checked = prefs.emailNotification;
+                }
+                
+                // 短信通知
+                if (prefs.smsNotification !== undefined) {
+                    document.getElementById('smsNotification').checked = prefs.smsNotification;
+                }
+            } catch (error) {
+                console.error('加载偏好设置失败:', error);
+            }
+        }
+
+        // 检查密码强度
+        function checkPasswordStrength(password) {
+            if (password.length < 8) {
+                return { isValid: false, message: '密码长度至少8位', strength: 0 };
+            }
+            
+            let strength = 0;
+            let hasLower = /[a-z]/.test(password);
+            let hasUpper = /[A-Z]/.test(password);
+            let hasNumber = /[0-9]/.test(password);
+            let hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            
+            if (hasLower) strength++;
+            if (hasUpper) strength++;
+            if (hasNumber) strength++;
+            if (hasSpecial) strength++;
+            
+            // 长度加分
+            if (password.length >= 12) strength++;
+            
+            // 验证密码是否包含字母和数字（必需）
+            if (!(hasLower || hasUpper) || !hasNumber) {
+                return { isValid: false, message: '密码应包含字母和数字', strength: strength };
+            }
+            
+            let message = '';
+            if (strength <= 2) {
+                message = '密码强度较弱，建议包含大小写字母、数字和特殊字符';
+            } else if (strength <= 3) {
+                message = '密码强度中等';
+            } else {
+                message = '密码强度良好';
+            }
+            
+            return { isValid: true, strength: strength, message: message };
+        }
+        
+        // 更新密码强度指示器
+        function updatePasswordStrength(password) {
+            const strengthDiv = document.getElementById('passwordStrength');
+            if (!strengthDiv) return;
+            
+            if (!password || password.length === 0) {
+                strengthDiv.style.display = 'none';
+                return;
+            }
+            
+            strengthDiv.style.display = 'block';
+            const result = checkPasswordStrength(password);
+            
+            // 重置所有条
+            for (let i = 1; i <= 4; i++) {
+                const bar = document.getElementById(`strengthBar${i}`);
+                if (bar) {
+                    bar.style.background = '#D9D9D9';
+                }
+            }
+            
+            // 根据强度设置颜色
+            let color = '#F5222D'; // 红色 - 弱
+            let text = '密码强度：弱';
+            
+            if (result.strength >= 3) {
+                color = '#FAAD14'; // 橙色 - 中等
+                text = '密码强度：中等';
+            }
+            if (result.strength >= 4) {
+                color = '#52C41A'; // 绿色 - 强
+                text = '密码强度：强';
+            }
+            
+            // 更新进度条
+            const filledBars = Math.min(4, Math.ceil(result.strength));
+            for (let i = 1; i <= filledBars; i++) {
+                const bar = document.getElementById(`strengthBar${i}`);
+                if (bar) {
+                    bar.style.background = color;
+                }
+            }
+            
+            // 更新文字
+            const strengthText = document.getElementById('strengthText');
+            if (strengthText) {
+                strengthText.textContent = text;
+                strengthText.style.color = color;
+            }
+        }
+        
+        // 保存偏好设置
+        function savePreferences() {
+            try {
+                const prefs = {
+                    language: document.getElementById('language').value,
+                    timezone: document.getElementById('timezone').value,
+                    pageSize: parseInt(document.getElementById('pageSize').value),
+                    theme: document.getElementById('theme').value,
+                    emailNotification: document.getElementById('emailNotification').checked,
+                    smsNotification: document.getElementById('smsNotification').checked
+                };
+                
+                localStorage.setItem('user_preferences', JSON.stringify(prefs));
+                
+                // 应用主题
+                applyTheme(prefs.theme);
+                
+                return true;
+            } catch (error) {
+                console.error('保存偏好设置失败:', error);
+                return false;
+            }
+        }
+        
+        // 应用主题（如果全局函数不存在，使用本地实现）
+        function applyTheme(theme) {
+            if (typeof window.applyTheme === 'function') {
+                window.applyTheme(theme);
+            } else {
+                // 本地实现（兼容）
+                if (theme === 'dark') {
+                    document.body.classList.add('dark-theme');
+                } else if (theme === 'light') {
+                    document.body.classList.remove('dark-theme');
+                } else if (theme === 'auto') {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    if (prefersDark) {
+                        document.body.classList.add('dark-theme');
+                    } else {
+                        document.body.classList.remove('dark-theme');
+                    }
+                }
+            }
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProfileData();
+            
+            // 监听新密码输入，实时更新密码强度指示器
+            const newPasswordInput = document.getElementById('newPassword');
+            if (newPasswordInput) {
+                newPasswordInput.addEventListener('input', function(e) {
+                    updatePasswordStrength(e.target.value);
+                });
+            }
+        });
+
+        // 通知图标点击
+        document.getElementById('notificationIcon').addEventListener('click', function(e) {
+            e.stopPropagation();
+            showToast('您有3条未读通知', 'info');
+        });
+
+        // 表单提交
+        document.getElementById('profileForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            // 验证密码
+            if (newPassword) {
+                if (!currentPassword) {
+                    showToast('修改密码需要提供当前密码', 'error');
+                    return;
+                }
+                
+                if (newPassword !== confirmPassword) {
+                    showToast('两次输入的密码不一致', 'error');
+                    return;
+                }
+                
+                if (newPassword.length < 8) {
+                    showToast('密码长度至少8位', 'error');
+                    return;
+                }
+                
+                // 密码强度验证
+                const strengthResult = checkPasswordStrength(newPassword);
+                if (!strengthResult.isValid) {
+                    showToast(strengthResult.message, 'error');
+                    return;
+                }
+            }
+            
+            const btn = document.querySelector('.btn-primary');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+            
+            try {
+                // 准备提交数据
+                const profileData = {
+                    real_name: document.getElementById('realName').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    phone: document.getElementById('phone').value.trim()
+                };
+                
+                // 如果修改密码，添加密码字段
+                if (newPassword) {
+                    profileData.current_password = currentPassword;
+                    profileData.new_password = newPassword;
+                    profileData.confirm_password = confirmPassword;
+                }
+                
+                // 提交到后端
+                const response = await fetch(`${API_BASE}/auth/profile`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profileData)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 保存偏好设置
+                    savePreferences();
+                    
+                    showToast('设置已保存成功', 'success');
+                    
+                    // 清空密码字段
+                    if (newPassword) {
+                        document.getElementById('currentPassword').value = '';
+                        document.getElementById('newPassword').value = '';
+                        document.getElementById('confirmPassword').value = '';
+                    }
+                    
+                    // 重新加载用户信息（更新用户名显示）
+                    await loadCurrentUser();
+                } else {
+                    showToast(result.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                console.error('保存失败:', error);
+                showToast('保存失败，请稍后重试', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+
+        // 重置表单
+        async function resetForm() {
+            if (confirm('确定要重置所有设置吗？这将恢复为默认值。')) {
+                // 重新加载用户数据
+                await loadProfileData();
+                
+                // 重置偏好设置为默认值
+                document.getElementById('language').value = 'zh-CN';
+                document.getElementById('timezone').value = 'Asia/Shanghai';
+                document.getElementById('pageSize').value = '20';
+                document.getElementById('theme').value = 'light';
+                document.getElementById('emailNotification').checked = true;
+                document.getElementById('smsNotification').checked = false;
+                
+                // 清空密码字段
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                
+                // 清除保存的头像
+                try {
+                    const userData = await loadCurrentUser();
+                    if (userData && userData.id) {
+                        const avatarData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                        delete avatarData[userData.id];
+                        delete avatarData['default'];
+                        localStorage.setItem('user_avatar', JSON.stringify(avatarData));
+                    }
+                } catch (error) {
+                    console.error('清除头像失败:', error);
+                }
+                
+                // 重置头像预览
+                const avatarPreview = document.getElementById('avatarPreview');
+                if (avatarPreview) {
+                    avatarPreview.innerHTML = '<i class="fas fa-user"></i>';
+                }
+                
+                // 重置右上角头像
+                updateHeaderAvatar(null);
+                
+                showToast('设置已重置', 'info');
+            }
+        }
+    </script>
+</body>
+</html>
+

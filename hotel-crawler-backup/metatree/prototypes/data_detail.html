@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据详情 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #F0F2F5;
+            color: #262626;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo h2 {
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo h2 i {
+            color: #d4af37;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu li {
+            margin-bottom: 4px;
+        }
+
+        .nav-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .nav-menu a:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .nav-menu a.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 200px;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .hotel-header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .hotel-header h1 {
+            font-size: 24px;
+            margin-bottom: 16px;
+        }
+
+        .hotel-meta {
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #595959;
+            font-size: 14px;
+        }
+
+        .platform-tabs {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .tabs-header {
+            display: flex;
+            border-bottom: 1px solid #F0F0F0;
+            padding: 0 24px;
+        }
+
+        .tab {
+            padding: 16px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: #595959;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #1890FF;
+            border-bottom-color: #1890FF;
+        }
+
+        .tab-content {
+            padding: 24px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .info-card {
+            background: #F5F5F5;
+            padding: 16px;
+            border-radius: 4px;
+        }
+
+        .info-card label {
+            display: block;
+            font-size: 12px;
+            color: #8C8C8C;
+            margin-bottom: 4px;
+        }
+
+        .info-card .value {
+            font-size: 16px;
+            color: #262626;
+            font-weight: 500;
+        }
+
+        .chart-section {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        .chart-section h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .room-types {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .room-types h2 {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #FAFAFA;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        td {
+            padding: 16px;
+            font-size: 14px;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        tbody tr:hover {
+            background: #F5F5F5;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2><i class="fas fa-hotel"></i> 酒店管理平台</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="dashboard.html"><i class="fas fa-home"></i> 首页</a></li>
+                <li><a href="crawl-tasks.html"><i class="fas fa-tasks"></i> 任务中心</a></li>
+                <li><a href="data_query.html" class="active"><i class="fas fa-search"></i> 数据查询</a></li>
+                <li><a href="data_analysis.html"><i class="fas fa-chart-line"></i> 数据分析</a></li>
+                <li><a href="data_export.html"><i class="fas fa-download"></i> 数据导出</a></li>
+                <li><a href="user_management.html"><i class="fas fa-users"></i> 用户管理</a></li>
+                <li><a href="system_settings.html"><i class="fas fa-cog"></i> 系统设置</a></li>
+                <li><a href="profile.html"><i class="fas fa-user-circle"></i> 个人设置</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <span class="breadcrumb">数据管理 / 数据详情</span>
+                </div>
+                <div class="header-right">
+                    <i class="fas fa-bell" style="cursor: pointer; color: #8C8C8C;"></i>
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span id="currentUsername">加载中...</span>
+                        <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="hotel-header">
+                    <h1>北京饭店</h1>
+                    <div class="hotel-meta">
+                        <div class="meta-item">
+                            <i class="fas fa-map-marker-alt" style="color: #1890FF;"></i>
+                            <span style="background: #E6F7FF; color: #1890FF; padding: 4px 12px; border-radius: 12px; font-size: 14px; font-weight: 500;">北京</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-star" style="color: #FAAD14;"></i>
+                            <span>五星级</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-map-marker-alt"></i>
+                            <span>北京市东城区东长安街33号</span>
+                        </div>
+                        <div class="meta-item">
+                            <i class="fas fa-clock"></i>
+                            <span>最后更新：2024-12-19 10:32</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="platform-tabs">
+                    <div class="tabs-header">
+                        <button class="tab active" onclick="switchTab('meituan')">美团</button>
+                        <button class="tab" onclick="switchTab('ctrip')">携程</button>
+                        <button class="tab" onclick="switchTab('fliggy')">飞猪</button>
+                        <button class="tab" onclick="switchTab('gaode')">高德</button>
+                    </div>
+                    <div class="tab-content">
+                        <div id="meituan-content">
+                            <div class="info-grid">
+                                <div class="info-card">
+                                    <label>点评分数</label>
+                                    <div class="value">4.8 分</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>点评条数</label>
+                                    <div class="value">1,234 条</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>酒店起价</label>
+                                    <div class="value">¥588 / 晚</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>预订动态</label>
+                                    <div class="value">5分钟前有人预订</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>所属区域</label>
+                                    <div class="value">北京 - 东城区</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>开业时间</label>
+                                    <div class="value">2018年5月</div>
+                                </div>
+                                <div class="info-card">
+                                    <label>爬取时间</label>
+                                    <div class="value">2024-12-19 10:32:15</div>
+                                </div>
+                            </div>
+
+                            <div class="chart-section">
+                                <h2>价格趋势</h2>
+                                <div class="chart-container">
+                                    <canvas id="priceChart"></canvas>
+                                </div>
+                            </div>
+
+                            <div class="room-types">
+                                <h2>房型信息</h2>
+                                <table>
+                                    <thead>
+                                        <tr>
+                                            <th>房型名称</th>
+                                            <th>最低价</th>
+                                            <th>剩余库存</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>豪华大床房</td>
+                                            <td>¥588/晚</td>
+                                            <td>剩余较多</td>
+                                        </tr>
+                                        <tr>
+                                            <td>行政双床房</td>
+                                            <td>¥688/晚</td>
+                                            <td>剩余少量</td>
+                                        </tr>
+                                        <tr>
+                                            <td>商务套房</td>
+                                            <td>¥888/晚</td>
+                                            <td>剩余较多</td>
+                                        </tr>
+                                        <tr>
+                                            <td>总统套房</td>
+                                            <td>¥2,888/晚</td>
+                                            <td>剩余较多</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 消息提示容器 -->
+    <div id="toast" class="toast" style="display: none; position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; align-items: center; gap: 8px; min-width: 300px;">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (usernameEl) {
+                        usernameEl.textContent = result.data.real_name || result.data.username || '管理员';
+                    }
+                    return result.data;
+                } else {
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentUser();
+        });
+
+        // 消息提示函数
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast show';
+            toast.style.display = 'flex';
+            toast.style.background = type === 'success' ? '#F6FFED' : type === 'error' ? '#FFF1F0' : '#E6F7FF';
+            toast.style.color = type === 'success' ? '#52C41A' : type === 'error' ? '#F5222D' : '#1890FF';
+            toast.style.border = `1px solid ${type === 'success' ? '#B7EB8F' : type === 'error' ? '#FFCCC7' : '#91D5FF'}`;
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+                toast.style.display = 'none';
+            }, 3000);
+        }
+
+        // 侧边栏菜单跳转
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const menuText = this.querySelector('span').textContent;
+                const routes = {
+                    '首页': 'dashboard.html',
+                    '任务中心': 'crawl-tasks.html',
+                    '数据管理': 'data_query.html',
+                    '数据分析': 'data_analysis.html',
+                    '数据导出': 'data_export.html',
+                    '用户管理': 'user_management.html',
+                    '系统设置': 'system_settings.html'
+                };
+                const route = routes[menuText];
+                if (route && route !== window.location.pathname.split('/').pop()) {
+                    window.location.href = route;
+                }
+            });
+        });
+
+        function switchTab(platform) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            showToast(`已切换到${platform}平台数据`, 'info');
+        }
+
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['12/13', '12/14', '12/15', '12/16', '12/17', '12/18', '12/19'],
+                datasets: [{
+                    label: '价格',
+                    data: [588, 598, 588, 588, 598, 588, 588],
+                    borderColor: '#1890FF',
+                    backgroundColor: 'rgba(24, 144, 255, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #F0F2F5;
+            color: #262626;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: #d4af37;
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .menu-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+        }
+
+        .header {
+            background: white;
+            padding: 16px 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: #1890FF;
+            text-decoration: none;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            padding: 8px 24px;
+            background: #1890FF;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary:hover {
+            background: #40a9ff;
+        }
+
+        .filter-bar {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .filter-bar input {
+            padding: 6px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+            width: 200px;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        th {
+            background: #FAFAFA;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #F5F5F5;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .status-active {
+            background: #F6FFED;
+            color: #52C41A;
+        }
+
+        .status-inactive {
+            background: #FFF1F0;
+            color: #F5222D;
+        }
+
+        .role-badge {
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            display: inline-block;
+        }
+
+        .role-admin {
+            background: #E6F7FF;
+            color: #1890FF;
+        }
+
+        .role-operator {
+            background: #FFF7E6;
+            color: #FAAD14;
+        }
+
+        .role-user {
+            background: #F5F5F5;
+            color: #8C8C8C;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon {
+            padding: 4px 8px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            color: #1890FF;
+            font-size: 14px;
+        }
+
+        .btn-icon:hover {
+            color: #40a9ff;
+        }
+
+        .btn-icon.danger {
+            color: #F5222D;
+        }
+
+        .btn-icon.danger:hover {
+            color: #ff4d4f;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            min-width: 300px;
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: #F6FFED;
+            color: #52C41A;
+            border: 1px solid #B7EB8F;
+        }
+
+        .toast.error {
+            background: #FFF1F0;
+            color: #F5222D;
+            border: 1px solid #FFCCC7;
+        }
+
+        .toast.info {
+            background: #E6F7FF;
+            color: #1890FF;
+            border: 1px solid #91D5FF;
+        }
+
+        .filter-bar select {
+            padding: 6px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+            background: white;
+            cursor: pointer;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 16px;
+            background: white;
+            border-top: 1px solid #F0F0F0;
+        }
+
+        .pagination button {
+            padding: 6px 12px;
+            border: 1px solid #D9D9D9;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            border-color: #1890FF;
+            color: #1890FF;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .page-info {
+            margin: 0 16px;
+            font-size: 14px;
+            color: #8C8C8C;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10001;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #8C8C8C;
+        }
+
+        .modal-close:hover {
+            color: #262626;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #262626;
+        }
+
+        .form-group label .required {
+            color: #F5222D;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #1890FF;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .btn-secondary {
+            padding: 8px 24px;
+            background: white;
+            color: #262626;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-secondary:hover {
+            border-color: #1890FF;
+            color: #1890FF;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #8C8C8C;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #8C8C8C;
+        }
+
+        /* ============================================
+           深色模式 - 用户管理页面专用样式
+           确保所有元素清晰可读，对比度 ≥ 7:1
+           ============================================ */
+        
+        body.dark-theme {
+            background: #0d1117 !important;
+            color: #c9d1d9 !important;
+        }
+
+        /* 侧边栏 */
+        body.dark-theme .sidebar {
+            background: linear-gradient(180deg, #161b22 0%, #0d1117 100%) !important;
+        }
+
+        body.dark-theme .logo {
+            border-bottom-color: rgba(255,255,255,0.2) !important;
+        }
+
+        body.dark-theme .logo-text {
+            color: #ffffff !important;
+        }
+
+        body.dark-theme .menu-item {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme .menu-item:hover {
+            background: rgba(255,255,255,0.08) !important;
+            color: #fbbf24 !important;
+        }
+
+        body.dark-theme .menu-item.active {
+            background: rgba(251, 191, 36, 0.15) !important;
+            color: #fbbf24 !important;
+            border-left-color: #fbbf24 !important;
+        }
+
+        /* 顶部导航 */
+        body.dark-theme .header {
+            background: #161b22 !important;
+            border-bottom: 1px solid #30363d !important;
+        }
+
+        body.dark-theme .breadcrumb {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme .breadcrumb a {
+            color: #58a6ff !important;
+        }
+
+        body.dark-theme .user-info span {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme .user-info i {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme .user-info i:hover {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme #notificationIcon {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme #notificationIcon:hover {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme .user-info .fa-chevron-down {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme .dropdown-menu {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+        }
+
+        body.dark-theme .dropdown-item {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme .dropdown-item:hover {
+            background: #21262d !important;
+            color: #fbbf24 !important;
+        }
+
+        /* 页面标题 */
+        body.dark-theme .page-header {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+        }
+
+        body.dark-theme .page-title {
+            color: #f0f6fc !important;
+        }
+
+        /* 搜索和筛选栏 */
+        body.dark-theme .filter-bar {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+        }
+
+        body.dark-theme .filter-bar input {
+            background: #0d1117 !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .filter-bar input::placeholder {
+            color: #6e7681 !important;
+        }
+
+        body.dark-theme .filter-bar input:focus {
+            border-color: #58a6ff !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        body.dark-theme .filter-bar select {
+            background: #0d1117 !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .filter-bar select:focus {
+            border-color: #58a6ff !important;
+            outline: none;
+        }
+
+        body.dark-theme .form-group label {
+            color: #f0f6fc !important;
+        }
+
+        body.dark-theme .form-group label .required {
+            color: #f85149 !important;
+        }
+
+        body.dark-theme .form-group input,
+        body.dark-theme .form-group select {
+            background: #0d1117 !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .form-group input::placeholder {
+            color: #6e7681 !important;
+        }
+
+        body.dark-theme .form-group input:disabled {
+            background: #0d1117 !important;
+            color: #6e7681 !important;
+            cursor: not-allowed;
+        }
+
+        body.dark-theme .form-group input:focus,
+        body.dark-theme .form-group select:focus {
+            border-color: #58a6ff !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        body.dark-theme .form-group small {
+            color: #8b949e !important;
+        }
+
+        /* 按钮 */
+        body.dark-theme .btn-primary {
+            background: #238636 !important;
+            color: #ffffff !important;
+        }
+
+        body.dark-theme .btn-primary:hover {
+            background: #2ea043 !important;
+        }
+
+        body.dark-theme .btn-primary i {
+            color: #ffffff !important;
+        }
+
+        /* 表格 */
+        body.dark-theme .table-container {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+        }
+
+        body.dark-theme table {
+            background: #161b22 !important;
+        }
+
+        body.dark-theme th {
+            background: #0d1117 !important;
+            color: #f0f6fc !important;
+            border-bottom: 1px solid #30363d !important;
+            font-weight: 600;
+        }
+
+        body.dark-theme td {
+            color: #c9d1d9 !important;
+            border-bottom: 1px solid #21262d !important;
+        }
+
+        body.dark-theme tbody tr:hover {
+            background: #21262d !important;
+        }
+
+        /* 角色标签 - 关键修复：确保文字清晰可见，覆盖内联样式 */
+        body.dark-theme .role-badge {
+            font-weight: 500 !important;
+        }
+
+        body.dark-theme .role-admin {
+            background: rgba(88, 166, 255, 0.2) !important;
+            color: #79c0ff !important; /* 更亮的蓝色文字 */
+            border: 1px solid rgba(88, 166, 255, 0.4) !important;
+        }
+
+        /* 超级管理员 - 覆盖内联样式，使用属性选择器 */
+        body.dark-theme .role-badge[style*="722ED1"],
+        body.dark-theme .role-badge[style*="722ed1"],
+        body.dark-theme span.role-badge.role-admin[style*="722"] {
+            background: rgba(163, 113, 247, 0.3) !important;
+            color: #d2a8ff !important; /* 非常亮的紫色文字，确保清晰 */
+            border: 1px solid rgba(163, 113, 247, 0.6) !important;
+        }
+
+        body.dark-theme .role-user {
+            background: rgba(201, 209, 217, 0.2) !important;
+            color: #e6edf3 !important; /* 非常亮的灰色文字，确保清晰 */
+            border: 1px solid rgba(201, 209, 217, 0.4) !important;
+        }
+
+        body.dark-theme .role-operator {
+            background: rgba(251, 191, 36, 0.2) !important;
+            color: #fbbf24 !important; /* 金色文字 */
+            border: 1px solid rgba(251, 191, 36, 0.4) !important;
+        }
+
+        /* 状态标签 - 关键修复：确保文字清晰可见 */
+        body.dark-theme .status-badge {
+            font-weight: 500 !important;
+        }
+
+        body.dark-theme .status-active {
+            background: rgba(46, 160, 67, 0.25) !important;
+            color: #56d364 !important; /* 非常亮的绿色文字 */
+            border: 1px solid rgba(46, 160, 67, 0.5) !important;
+        }
+
+        body.dark-theme .status-inactive {
+            background: rgba(248, 81, 73, 0.25) !important;
+            color: #ff6b6b !important; /* 非常亮的红色文字 */
+            border: 1px solid rgba(248, 81, 73, 0.5) !important;
+        }
+
+        /* 操作按钮 */
+        body.dark-theme .btn-icon {
+            color: #58a6ff !important;
+            background: transparent !important;
+        }
+
+        body.dark-theme .btn-icon:hover {
+            color: #79c0ff !important;
+            background: rgba(88, 166, 255, 0.1) !important;
+        }
+
+        body.dark-theme .btn-icon.danger {
+            color: #f85149 !important;
+        }
+
+        body.dark-theme .btn-icon.danger:hover {
+            color: #ff6b6b !important;
+            background: rgba(248, 81, 73, 0.1) !important;
+        }
+
+        /* 分页 */
+        body.dark-theme .pagination {
+            background: #161b22 !important;
+        }
+
+        body.dark-theme .pagination button {
+            background: #21262d !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .pagination button:hover:not(:disabled) {
+            background: #30363d !important;
+            border-color: #58a6ff !important;
+            color: #58a6ff !important;
+        }
+
+        body.dark-theme .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        body.dark-theme .pagination .page-info {
+            color: #8b949e !important;
+        }
+
+        /* 模态框 */
+        body.dark-theme .modal {
+            background: rgba(0, 0, 0, 0.7) !important;
+        }
+
+        body.dark-theme .modal-content {
+            background: #161b22 !important;
+            border: 1px solid #30363d !important;
+        }
+
+        body.dark-theme .modal-title {
+            color: #f0f6fc !important;
+        }
+
+        body.dark-theme .modal-close {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme .modal-close:hover {
+            color: #c9d1d9 !important;
+        }
+
+        body.dark-theme .form-group label {
+            color: #f0f6fc !important;
+        }
+
+        body.dark-theme .form-group label .required {
+            color: #f85149 !important;
+        }
+
+        body.dark-theme .form-group input,
+        body.dark-theme .form-group select {
+            background: #0d1117 !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .form-group input::placeholder {
+            color: #6e7681 !important;
+        }
+
+        body.dark-theme .form-group input:disabled {
+            background: #0d1117 !important;
+            color: #6e7681 !important;
+            cursor: not-allowed;
+        }
+
+        body.dark-theme .form-group input:focus,
+        body.dark-theme .form-group select:focus {
+            border-color: #58a6ff !important;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+        }
+
+        body.dark-theme .form-group small {
+            color: #8b949e !important;
+        }
+
+        body.dark-theme .btn-secondary {
+            background: #21262d !important;
+            color: #c9d1d9 !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .btn-secondary:hover {
+            background: #30363d !important;
+            border-color: #58a6ff !important;
+            color: #58a6ff !important;
+        }
+
+        /* Toast 提示 */
+        body.dark-theme .toast {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+
+        body.dark-theme .toast.success {
+            background: #1a472a !important;
+            color: #3fb950 !important;
+            border-color: #238636 !important;
+        }
+
+        body.dark-theme .toast.info {
+            background: #1c2128 !important;
+            color: #58a6ff !important;
+            border-color: #30363d !important;
+        }
+
+        body.dark-theme .toast.error {
+            background: #3d1f1f !important;
+            color: #f85149 !important;
+            border-color: #da3633 !important;
+        }
+
+        body.dark-theme .toast i {
+            color: inherit !important;
+        }
+
+        /* 加载和空状态 */
+        body.dark-theme .loading,
+        body.dark-theme .empty-state {
+            color: #8b949e !important;
+        }
+
+        /* 表格中的禁用按钮和文字 */
+        body.dark-theme .btn-icon:disabled {
+            opacity: 0.5 !important;
+            cursor: not-allowed !important;
+            color: #6e7681 !important;
+        }
+
+        body.dark-theme td span[style*="color: #8C8C8C"] {
+            color: #8b949e !important;
+        }
+
+        /* 确保所有文字清晰 */
+        body.dark-theme * {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* 强制覆盖内联样式 - 使用更高优先级 */
+        body.dark-theme span.role-badge[style] {
+            font-weight: 500 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='crawl-tasks.html'">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_query.html'">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_analysis.html'">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_export.html'">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item active">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='system_settings.html'">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html">首页</a> / <span>用户管理</span>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="cursor: pointer; position: relative;">
+                        <span style="position: absolute; top: -4px; right: -4px; background: #F5222D; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; display: flex; align-items: center; justify-content: center;">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 8px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername">加载中...</span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="page-header">
+                    <div class="page-title">用户管理</div>
+                    <button class="btn-primary" onclick="showCreateModal()">
+                        <i class="fas fa-plus"></i>
+                        创建用户
+                    </button>
+                </div>
+
+                <div class="filter-bar">
+                    <input type="text" placeholder="搜索用户名、姓名或邮箱..." id="searchInput" onkeypress="if(event.key==='Enter') loadUsers()">
+                    <select id="roleFilter">
+                        <option value="">全部角色</option>
+                        <option value="admin">管理员</option>
+                        <option value="operator">操作员</option>
+                        <option value="user">普通用户</option>
+                    </select>
+                    <select id="statusFilter">
+                        <option value="">全部状态</option>
+                        <option value="active">启用</option>
+                        <option value="inactive">禁用</option>
+                    </select>
+                    <button class="btn-primary" onclick="loadUsers()">
+                        <i class="fas fa-search"></i>
+                        搜索
+                    </button>
+                </div>
+
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>用户名</th>
+                                <th>姓名</th>
+                                <th>邮箱</th>
+                                <th>角色</th>
+                                <th>状态</th>
+                                <th>创建时间</th>
+                                <th>最后登录</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="userTableBody">
+                            <tr>
+                                <td colspan="8" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="pagination" id="pagination" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <!-- 创建/编辑用户模态框 -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="modalTitle">创建用户</div>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <form id="userForm" onsubmit="handleSubmit(event)">
+                <input type="hidden" id="userId">
+                <div class="form-group">
+                    <label>用户名 <span class="required">*</span></label>
+                    <input type="text" id="username" required minlength="3" maxlength="20" pattern="[a-zA-Z0-9_]+" 
+                           placeholder="3-20位字母、数字或下划线" disabled>
+                    <small style="color: #8C8C8C; font-size: 12px;">创建后不可修改</small>
+                </div>
+                <div class="form-group" id="passwordGroup">
+                    <label>密码 <span class="required">*</span></label>
+                    <input type="password" id="password" minlength="6" placeholder="至少6位">
+                </div>
+                <div class="form-group" id="password2Group">
+                    <label>确认密码 <span class="required">*</span></label>
+                    <input type="password" id="password2" minlength="6" placeholder="再次输入密码">
+                </div>
+                <div class="form-group">
+                    <label>姓名</label>
+                    <input type="text" id="realName" maxlength="50" placeholder="用户真实姓名">
+                </div>
+                <div class="form-group">
+                    <label>邮箱</label>
+                    <input type="email" id="email" placeholder="user@example.com">
+                </div>
+                <div class="form-group">
+                    <label>手机号</label>
+                    <input type="tel" id="phone" maxlength="20" placeholder="手机号码">
+                </div>
+                <div class="form-group">
+                    <label>角色 <span class="required">*</span></label>
+                    <select id="role" required>
+                        <option value="user">普通用户</option>
+                        <option value="operator">操作员</option>
+                        <option value="admin" id="roleAdminOption">管理员</option>
+                        <option value="super_admin" id="roleSuperAdminOption" style="display: none;">超级管理员</option>
+                    </select>
+                    <small id="roleHint" style="color: #8C8C8C; font-size: 12px; display: none;"></small>
+                </div>
+                <div class="form-group">
+                    <label>状态 <span class="required">*</span></label>
+                    <select id="status" required>
+                        <option value="active">启用</option>
+                        <option value="inactive">禁用</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal()">取消</button>
+                    <button type="submit" class="btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api/auth';
+        let currentPage = 1;
+        let currentPageSize = 20;
+        let currentUser = null;
+
+        // 加载用户头像到右上角
+        function loadUserAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                const headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.user-avatar');
+                
+                if (headerAvatar) {
+                    if (avatarData) {
+                        headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+                    } else {
+                        headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+
+        // 页面加载时获取当前用户信息
+        async function init() {
+            try {
+                const res = await fetch('/api/auth/me');
+                const result = await res.json();
+                if (result.success) {
+                    currentUser = result.data;
+                    // 更新顶部用户信息
+                    const usernameEl = document.getElementById('currentUsername');
+                    if (usernameEl) {
+                        usernameEl.textContent = result.data.real_name || result.data.username || '管理员';
+                    }
+                    // 加载用户头像
+                    loadUserAvatar(result.data.id);
+                    
+                    // 检查权限：只有管理员和超级管理员可以访问用户管理
+                    if (result.data.role !== 'admin' && result.data.role !== 'super_admin') {
+                        showNoPermissionMessage();
+                        return;
+                    }
+                } else {
+                    // API返回失败，显示默认值
+                    const usernameEl = document.getElementById('currentUsername');
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    // 未登录，跳转到登录页
+                    window.location.href = '/login.html';
+                    return;
+                }
+            } catch (e) {
+                console.error('获取用户信息失败:', e);
+                // 显示默认值
+                const usernameEl = document.getElementById('currentUsername');
+                if (usernameEl) usernameEl.textContent = '管理员';
+                showToast('获取用户信息失败，请重新登录', 'error');
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 2000);
+                return;
+            }
+            loadUsers();
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 显示无权限提示
+        function showNoPermissionMessage() {
+            const tbody = document.getElementById('userTableBody');
+            const content = document.querySelector('.content');
+            
+            // 隐藏操作按钮
+            const createBtn = document.querySelector('.page-header .btn-primary');
+            if (createBtn) createBtn.style.display = 'none';
+            
+            // 隐藏筛选栏
+            const filterBar = document.querySelector('.filter-bar');
+            if (filterBar) filterBar.style.display = 'none';
+            
+            // 显示权限不足提示
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="empty-state" style="padding: 60px 20px;">
+                        <div style="text-align: center;">
+                            <i class="fas fa-lock" style="font-size: 48px; color: #D9D9D9; margin-bottom: 16px;"></i>
+                            <h3 style="color: #262626; margin-bottom: 8px;">权限不足</h3>
+                            <p style="color: #8C8C8C; margin-bottom: 24px;">您没有访问用户管理页面的权限，此功能仅限管理员使用。</p>
+                            <button class="btn-primary" onclick="window.location.href='dashboard.html'">
+                                <i class="fas fa-arrow-left"></i>
+                                返回首页
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        // 加载用户列表
+        async function loadUsers(page = 1) {
+            try {
+                const tbody = document.getElementById('userTableBody');
+                tbody.innerHTML = '<tr><td colspan="8" class="loading">加载中...</td></tr>';
+
+                const keyword = document.getElementById('searchInput').value.trim();
+                const role = document.getElementById('roleFilter').value;
+                const status = document.getElementById('statusFilter').value;
+
+                const params = new URLSearchParams();
+                if (keyword) params.append('keyword', keyword);
+                if (role) params.append('role', role);
+                if (status) params.append('status', status);
+                params.append('page', page);
+                params.append('page_size', currentPageSize);
+
+                const res = await fetch(`${API_BASE}/users?${params.toString()}`);
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    // 如果是权限错误，显示友好提示
+                    if (res.status === 403) {
+                        showNoPermissionMessage();
+                        return;
+                    }
+                    throw new Error(result.error || '加载用户列表失败');
+                }
+
+                const { users, pagination } = result.data;
+                currentPage = pagination.page;
+
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无用户数据</td></tr>';
+                    document.getElementById('pagination').style.display = 'none';
+                    return;
+                }
+
+                renderUsers(users);
+                renderPagination(pagination);
+            } catch (error) {
+                console.error('加载用户列表失败:', error);
+                const tbody = document.getElementById('userTableBody');
+                
+                // 如果是权限错误，显示友好提示
+                if (error.message.includes('权限') || error.message.includes('403')) {
+                    showNoPermissionMessage();
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="8" class="empty-state" style="color: #F5222D;">加载失败: ${error.message}</td></tr>`;
+                    showToast('加载用户列表失败: ' + error.message, 'error');
+                }
+            }
+        }
+
+        // 渲染用户列表
+        function renderUsers(users) {
+            const tbody = document.getElementById('userTableBody');
+            const roleMap = {
+                super_admin: { text: '超级管理员', class: 'role-admin', style: 'background: #722ED1; color: white;' },
+                admin: { text: '管理员', class: 'role-admin' },
+                operator: { text: '操作员', class: 'role-operator' },
+                user: { text: '普通用户', class: 'role-user' }
+            };
+            const statusMap = {
+                active: { text: '启用', class: 'status-active' },
+                inactive: { text: '禁用', class: 'status-inactive' }
+            };
+
+            tbody.innerHTML = users.map(user => {
+                const role = roleMap[user.role] || { text: user.role, class: 'role-user' };
+                const status = statusMap[user.status] || { text: user.status, class: 'status-inactive' };
+                const isCurrentUser = currentUser && user.id === currentUser.id;
+                const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+                const isSuperAdmin = user.role === 'super_admin';
+                const currentIsSuperAdmin = currentUser && currentUser.role === 'super_admin';
+                
+                // 检查是否可以管理此用户
+                const canManage = currentIsSuperAdmin || (currentUser && currentUser.role === 'admin' && !isAdmin);
+
+                let actions = '';
+                if (isCurrentUser) {
+                    // 当前用户只能编辑和重置密码
+                    actions = `
+                        <button class="btn-icon" title="编辑" onclick="showEditModal(${user.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn-icon" title="重置密码" onclick="resetPassword(${user.id})">
+                            <i class="fas fa-key"></i>
+                        </button>
+                    `;
+                } else if (isAdmin && !currentIsSuperAdmin) {
+                    // 普通管理员不能管理其他管理员
+                    actions = `
+                        <button class="btn-icon" title="编辑" disabled style="opacity: 0.5; cursor: not-allowed;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <span style="color: #8C8C8C; font-size: 12px;">无权限</span>
+                    `;
+                } else if (canManage || currentIsSuperAdmin) {
+                    // 普通用户和操作员可以编辑、切换状态、删除
+                    const statusAction = user.status === 'active' 
+                        ? `<button class="btn-icon" title="禁用" onclick="toggleStatus(${user.id})">
+                             <i class="fas fa-ban"></i>
+                           </button>`
+                        : `<button class="btn-icon" title="启用" onclick="toggleStatus(${user.id})">
+                             <i class="fas fa-check"></i>
+                           </button>`;
+                    
+                    actions = `
+                        <button class="btn-icon" title="编辑" onclick="showEditModal(${user.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        ${statusAction}
+                        <button class="btn-icon danger" title="删除" onclick="deleteUser(${user.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                }
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(user.username)}</td>
+                        <td>${escapeHtml(user.real_name || '-')}</td>
+                        <td>${escapeHtml(user.email || '-')}</td>
+                        <td><span class="role-badge ${role.class}" ${role.style ? `style="${role.style}"` : ''}>${role.text}</span></td>
+                        <td><span class="status-badge ${status.class}">${status.text}</span></td>
+                        <td>${user.created_at || '-'}</td>
+                        <td>${user.last_login_at || '从未登录'}</td>
+                        <td>
+                            <div class="action-buttons">${actions}</div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // 渲染分页
+        function renderPagination(pagination) {
+            const paginationEl = document.getElementById('pagination');
+            if (pagination.total_pages <= 1) {
+                paginationEl.style.display = 'none';
+                return;
+            }
+
+            paginationEl.style.display = 'flex';
+            paginationEl.innerHTML = `
+                <button onclick="loadUsers(1)" ${pagination.page === 1 ? 'disabled' : ''}>首页</button>
+                <button onclick="loadUsers(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}>上一页</button>
+                <span class="page-info">第 ${pagination.page} / ${pagination.total_pages} 页，共 ${pagination.total} 条</span>
+                <button onclick="loadUsers(${pagination.page + 1})" ${pagination.page >= pagination.total_pages ? 'disabled' : ''}>下一页</button>
+                <button onclick="loadUsers(${pagination.total_pages})" ${pagination.page >= pagination.total_pages ? 'disabled' : ''}>末页</button>
+            `;
+        }
+
+        // 显示创建用户模态框
+        function showCreateModal() {
+            document.getElementById('modalTitle').textContent = '创建用户';
+            document.getElementById('userForm').reset();
+            document.getElementById('userId').value = '';
+            document.getElementById('username').disabled = false;
+            document.getElementById('passwordGroup').style.display = 'block';
+            document.getElementById('password2Group').style.display = 'block';
+            document.getElementById('password').required = true;
+            document.getElementById('password2').required = true;
+            
+            // 根据当前用户角色显示可选角色
+            const roleSelect = document.getElementById('role');
+            const roleSuperAdminOption = document.getElementById('roleSuperAdminOption');
+            const roleHint = document.getElementById('roleHint');
+            
+            if (currentUser && currentUser.role === 'super_admin') {
+                // 超级管理员可以创建所有角色
+                roleSuperAdminOption.style.display = 'block';
+                roleHint.style.display = 'none';
+            } else {
+                // 普通管理员只能创建普通用户和操作员
+                roleSuperAdminOption.style.display = 'none';
+                if (roleSelect.value === 'admin' || roleSelect.value === 'super_admin') {
+                    roleSelect.value = 'user';
+                }
+                roleHint.style.display = 'block';
+                roleHint.textContent = '普通管理员只能创建普通用户和操作员';
+            }
+            
+            document.getElementById('userModal').classList.add('show');
+        }
+
+        // 显示编辑用户模态框
+        async function showEditModal(userId) {
+            try {
+                const res = await fetch(`${API_BASE}/users/${userId}`);
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || '获取用户信息失败');
+                }
+
+                const user = result.data;
+                document.getElementById('modalTitle').textContent = '编辑用户';
+                document.getElementById('userId').value = user.id;
+                document.getElementById('username').value = user.username;
+                document.getElementById('username').disabled = true;
+                document.getElementById('realName').value = user.real_name || '';
+                document.getElementById('email').value = user.email || '';
+                document.getElementById('phone').value = user.phone || '';
+                document.getElementById('role').value = user.role;
+                document.getElementById('status').value = user.status;
+                
+                // 根据当前用户角色限制可编辑的角色
+                const roleSelect = document.getElementById('role');
+                const roleSuperAdminOption = document.getElementById('roleSuperAdminOption');
+                const roleHint = document.getElementById('roleHint');
+                const isTargetAdmin = user.role === 'admin' || user.role === 'super_admin';
+                const currentIsSuperAdmin = currentUser && currentUser.role === 'super_admin';
+                
+                if (currentIsSuperAdmin) {
+                    // 超级管理员可以编辑所有角色
+                    roleSuperAdminOption.style.display = 'block';
+                    roleSelect.disabled = false;
+                    roleHint.style.display = 'none';
+                } else if (isTargetAdmin) {
+                    // 普通管理员不能编辑管理员角色
+                    roleSelect.disabled = true;
+                    roleHint.style.display = 'block';
+                    roleHint.textContent = '普通管理员不能修改管理员角色';
+                } else {
+                    // 普通管理员可以编辑普通用户和操作员
+                    roleSuperAdminOption.style.display = 'none';
+                    roleSelect.disabled = false;
+                    roleHint.style.display = 'none';
+                }
+                
+                // 编辑时密码可选
+                document.getElementById('passwordGroup').style.display = 'block';
+                document.getElementById('password2Group').style.display = 'block';
+                document.getElementById('password').required = false;
+                document.getElementById('password2').required = false;
+                document.getElementById('password').value = '';
+                document.getElementById('password2').value = '';
+
+                document.getElementById('userModal').classList.add('show');
+            } catch (error) {
+                showToast('获取用户信息失败: ' + error.message, 'error');
+            }
+        }
+
+        // 关闭模态框
+        function closeModal() {
+            document.getElementById('userModal').classList.remove('show');
+        }
+
+        // 提交表单
+        async function handleSubmit(event) {
+            event.preventDefault();
+            const userId = document.getElementById('userId').value;
+            const isEdit = !!userId;
+
+            const data = {
+                username: document.getElementById('username').value.trim(),
+                real_name: document.getElementById('realName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                phone: document.getElementById('phone').value.trim(),
+                role: document.getElementById('role').value,
+                status: document.getElementById('status').value,
+            };
+
+            const password = document.getElementById('password').value;
+            if (password) {
+                data.password = password;
+                data.password2 = document.getElementById('password2').value;
+            } else if (!isEdit) {
+                showToast('创建用户时密码不能为空', 'error');
+                return;
+            }
+
+            try {
+                const url = isEdit ? `${API_BASE}/users/${userId}` : `${API_BASE}/users`;
+                const method = isEdit ? 'PUT' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || '操作失败');
+                }
+
+                showToast(isEdit ? '用户更新成功' : '用户创建成功', 'success');
+                closeModal();
+                loadUsers(currentPage);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // 切换用户状态
+        async function toggleStatus(userId) {
+            const user = await getUserById(userId);
+            const action = user.status === 'active' ? '禁用' : '启用';
+            if (!confirm(`确定要${action}此用户吗？`)) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/users/${userId}/toggle-status`, {
+                    method: 'POST'
+                });
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || '操作失败');
+                }
+
+                showToast(result.message || `用户已${action}`, 'success');
+                loadUsers(currentPage);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // 删除用户
+        async function deleteUser(userId) {
+            if (!confirm('确定要删除此用户吗？删除后用户将被禁用。')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/users/${userId}`, {
+                    method: 'DELETE'
+                });
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || '删除失败');
+                }
+
+                showToast(result.message || '用户已删除', 'success');
+                loadUsers(currentPage);
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // 重置密码
+        async function resetPassword(userId) {
+            if (!confirm('确定要重置此用户的密码吗？新密码将随机生成。')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/users/${userId}/reset-password`, {
+                    method: 'POST'
+                });
+                const result = await res.json();
+
+                if (!res.ok || !result.success) {
+                    throw new Error(result.error || '重置密码失败');
+                }
+
+                const newPassword = result.data.new_password;
+                const message = `密码已重置，新密码为：${newPassword}\n请妥善保管并告知用户。`;
+                if (confirm(message + '\n\n是否复制密码到剪贴板？')) {
+                    navigator.clipboard.writeText(newPassword).then(() => {
+                        showToast('密码已复制到剪贴板', 'success');
+                    }).catch(() => {
+                        showToast('复制失败，请手动复制', 'info');
+                    });
+                }
+                showToast('密码重置成功', 'success');
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        // 获取用户信息
+        async function getUserById(userId) {
+            const res = await fetch(`${API_BASE}/users/${userId}`);
+            const result = await res.json();
+            if (!res.ok || !result.success) {
+                throw new Error(result.error || '获取用户信息失败');
+            }
+            return result.data;
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 点击模态框外部关闭
+        document.getElementById('userModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenu && userDropdown) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+        }
+
+        // 通知图标点击
+        const notificationIcon = document.getElementById('notificationIcon');
+        if (notificationIcon) {
+            notificationIcon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showToast('您有3条未读通知', 'info');
+            });
+        }
+
+        // 页面加载时初始化
+        init();
+    </script>
+</body>
+</html>
+

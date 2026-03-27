@@ -1,0 +1,12 @@
+.git
+.vscode
+.wdm
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.log
+.venv
+.env
+db_config.json

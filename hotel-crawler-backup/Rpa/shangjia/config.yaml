@@ -1,0 +1,73 @@
+# 代理通自动上架配置文件
+# 使用前请根据实际情况修改参数
+
+# 登录配置
+login:
+  url: "https://www.vipdlt.com"  # 代理通平台地址（可以是登录页或任意页面）
+  username: "13761509408"
+  password: "13761509408A!"
+  # 可选：使用已保存的cookies文件
+  use_cookies: true
+  cookies_file: "shangjia_cookies.pkl"
+
+# 上架任务配置
+task:
+  # 门店/酒店名称（支持多个）
+  hotels:
+    - "示例酒店1"
+    - "示例酒店2"
+  
+  # 渠道选择（可多选）
+  # 可选值: ["Trip", "Qunar", "B2B", "其他渠道"]
+  channels:
+    - "Trip"
+    - "Qunar"
+    - "B2B"
+  
+  # 房型选择（可多选）
+  room_types:
+    - "大床房"
+    - "双床房"
+    - "标准间"
+  
+  # 日期范围
+  date_start: "2025-01-01"  # 开始日期 YYYY-MM-DD
+  date_end: "2025-12-31"     # 结束日期 YYYY-MM-DD
+  
+  # 星期筛选（可选，不填则全选）
+  # 可选值: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  weekdays: []  # 空数组表示不筛选，全选所有星期
+  
+  # 操作类型和值
+  action: "price"  # 可选: "price"（价格）, "inventory"（库存）, "open_close"（开关房）
+  value: 968       # 根据action类型填写：
+                   # - price: 价格数值（如 968）
+                   # - inventory: 库存数量（如 2）
+                   # - open_close: true/false（开房/关房）
+
+# 浏览器配置
+browser:
+  headless: false      # true=无头模式, false=显示浏览器
+  slow_mo: 500         # 操作延迟（毫秒），模拟人工操作
+  timeout: 30000       # 页面加载超时（毫秒）
+  use_persistent: true # true=使用持久化上下文（非无痕模式，会保存登录态）, false=无痕模式
+  # 使用本地Chrome和用户数据目录（可选）
+  use_local_chrome: true  # true=使用本地Chrome, false=使用Playwright自带的Chromium
+  # chrome_executable: ""  # 本地Chrome路径（留空则自动检测，或通过环境变量 CHROME_BIN 指定）
+  user_data_dir: "C:\\Users\\武sir\\AppData\\Local\\Chromium\\User Data"  # 本地用户数据目录（使用已有登录态）
+  profile_directory: "Default"  # 配置文件目录
+  window_size:
+    width: 1920
+    height: 1080
+
+# 重试配置
+retry:
+  max_attempts: 3      # 最大重试次数
+  retry_delay: 2        # 重试间隔（秒）
+
+# 日志和截图配置
+logging:
+  screenshot_on_error: true   # 出错时自动截图
+  screenshot_dir: "screenshots"  # 截图保存目录
+  log_level: "INFO"           # 日志级别: DEBUG, INFO, WARNING, ERROR
+

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手机端 - 创建任务</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; padding: 16px; max-width: 480px; margin: 0 auto; }
+        h1 { font-size: 20px; margin-bottom: 16px; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; margin-bottom: 6px; font-size: 14px; }
+        .form-group input, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .platforms { display: flex; gap: 12px; flex-wrap: wrap; }
+        .platforms label { display: flex; align-items: center; gap: 6px; font-weight: normal; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; background: #1a365d; color: #fff; font-size: 16px; cursor: pointer; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .msg { margin-top: 12px; padding: 10px; border-radius: 6px; font-size: 14px; }
+        .msg.success { background: #e8f5e9; color: #2e7d32; }
+        .msg.error { background: #ffebee; color: #c62828; }
+        .links { margin-top: 20px; }
+        .links a { color: #1a365d; text-decoration: none; font-size: 14px; margin-right: 12px; }
+    </style>
+</head>
+<body>
+    <h1>手机端 - 创建任务</h1>
+    <form id="form">
+        <div class="form-group">
+            <label>酒店名称（必填，一行一个）</label>
+            <textarea id="hotelNames" placeholder="美利居酒店(上海人民广场店)"></textarea>
+        </div>
+        <div class="form-group">
+            <label>城市</label>
+            <input type="text" id="location" value="上海" placeholder="上海">
+        </div>
+        <div class="form-group">
+            <label>平台（至少选一个）</label>
+            <div class="platforms">
+                <label><input type="checkbox" name="platform" value="ctrip"> 携程</label>
+                <label><input type="checkbox" name="platform" value="meituan"> 美团</label>
+            </div>
+        </div>
+        <button type="submit" class="btn" id="btn">创建任务</button>
+    </form>
+    <div id="msg" class="msg" style="display:none;"></div>
+    <div class="links">
+        <a href="mobile_task_list.html">手机端任务列表</a>
+        <a href="dashboard.html">返回首页</a>
+    </div>
+    <script>
+        function showMsg(text, isError) {
+            var el = document.getElementById('msg');
+            el.textContent = text;
+            el.className = 'msg ' + (isError ? 'error' : 'success');
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 4000);
+        }
+        document.getElementById('form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var hotels = (document.getElementById('hotelNames').value || '').trim().split(/\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+            var platforms = Array.from(document.querySelectorAll('input[name="platform"]:checked')).map(function(c) { return c.value; });
+            var location = (document.getElementById('location').value || '').trim() || '上海';
+            if (!hotels.length) { showMsg('请输入至少一个酒店名称', true); return; }
+            if (!platforms.length) { showMsg('请至少选择一个平台', true); return; }
+            var btn = document.getElementById('btn');
+            btn.disabled = true;
+            btn.textContent = '创建中...';
+            try {
+                var res = await fetch('/api/app-crawl-tasks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ hotels: hotels, platforms: platforms, location: location })
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || !data.success) { throw new Error(data.error || '请求失败'); }
+                showMsg('已创建 ' + (data.data || []).length + ' 个任务');
+                document.getElementById('hotelNames').value = '';
+            } catch (err) {
+                showMsg(err.message || String(err), true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '创建任务';
+            }
+        });
+    </script>
+</body>
+</html>

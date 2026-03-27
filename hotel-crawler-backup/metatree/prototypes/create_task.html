@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>创建任务 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: #f5f5f0;
+            color: #2c3e50;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo h2 {
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .logo i {
+            color: #d4af37;
+        }
+
+        .nav-menu {
+            list-style: none;
+        }
+
+        .nav-menu li {
+            margin-bottom: 4px;
+        }
+
+        .nav-menu a {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: rgba(255, 255, 255, 0.65);
+            text-decoration: none;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+            gap: 12px;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .nav-menu a:hover,
+        .nav-menu a.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: #d4af37;
+            border-left: 3px solid #d4af37;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 200px;
+        }
+
+        .header {
+            background: #ffffff;
+            padding: 16px 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #e8e8e3;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .breadcrumb {
+            color: #8C8C8C;
+            font-size: 14px;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #d4af37 0%, #c9a961 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+        }
+
+        .content {
+            padding: 24px;
+        }
+
+        .page-header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .page-header h1 {
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-container {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(26, 54, 93, 0.08);
+            border: 1px solid #e8e8e3;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 32px;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            color: #595959;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #1a365d;
+            border-bottom-color: #d4af37;
+            font-weight: 500;
+        }
+
+        .form-section {
+            margin-bottom: 32px;
+        }
+
+        .form-section-title {
+            font-size: 16px;
+            font-weight: 500;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #F0F0F0;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: #262626;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .form-group label .required {
+            color: #F5222D;
+            margin-left: 4px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #D9D9D9;
+            border-radius: 4px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #d4af37;
+            box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group .help-text {
+            font-size: 12px;
+            color: #8C8C8C;
+            margin-top: 4px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 24px;
+        }
+
+        .radio-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .radio-item input[type="radio"] {
+            width: auto;
+        }
+
+        .schedule-config {
+            background: #F5F5F5;
+            padding: 20px;
+            border-radius: 4px;
+            margin-top: 16px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            padding-top: 24px;
+            border-top: 1px solid #F0F0F0;
+        }
+
+        .btn-primary {
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            box-shadow: 0 2px 8px rgba(26, 54, 93, 0.2);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            padding: 10px 24px;
+            background: white;
+            color: #2c3e50;
+            border: 1px solid #e8e8e3;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: #d4af37;
+            color: #d4af37;
+            background: #fffbf0;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="logo">
+                <h2><i class="fas fa-hotel"></i> 酒店管理平台</h2>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="dashboard.html"><i class="fas fa-home"></i> 首页</a></li>
+                <li><a href="crawl-tasks.html" class="active"><i class="fas fa-tasks"></i> 任务中心</a></li>
+                <li><a href="data_query.html"><i class="fas fa-search"></i> 数据查询</a></li>
+                <li><a href="data_analysis.html"><i class="fas fa-chart-line"></i> 数据分析</a></li>
+                <li><a href="data_export.html"><i class="fas fa-download"></i> 数据导出</a></li>
+                <li><a href="user_management.html"><i class="fas fa-users"></i> 用户管理</a></li>
+                <li><a href="system_settings.html"><i class="fas fa-cog"></i> 系统设置</a></li>
+                <li><a href="profile.html"><i class="fas fa-user-circle"></i> 个人设置</a></li>
+            </ul>
+        </aside>
+
+        <div class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <span class="breadcrumb">任务中心 / 创建任务</span>
+                </div>
+                <div class="header-right">
+                    <i class="fas fa-bell" style="cursor: pointer; color: #8C8C8C;"></i>
+                    <div class="user-info">
+                        <div class="user-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <span id="currentUsername">加载中...</span>
+                        <i class="fas fa-chevron-down" style="font-size: 12px;"></i>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="page-header">
+                    <h1><i class="fas fa-plus-circle"></i> 创建任务</h1>
+                </div>
+
+                <div class="form-container">
+                    <div class="tabs">
+                        <button class="tab active" onclick="switchTab('manual')">手动爬取</button>
+                        <button class="tab" onclick="switchTab('scheduled')">定时爬取</button>
+                    </div>
+
+                    <form id="taskForm">
+                        <div class="form-section">
+                            <div class="form-section-title">基本信息</div>
+                            
+                            <div class="form-group">
+                                <label>
+                                    酒店名称 <span class="required">*</span>
+                                </label>
+                                <textarea id="hotelNames" placeholder="请输入酒店名称，每行一个，支持多个酒店&#10;例如：&#10;北京饭店&#10;上海大酒店&#10;广州宾馆" required></textarea>
+                                <div class="help-text">支持批量输入，每行一个酒店名称</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    目标平台 <span class="required">*</span>
+                                </label>
+                                <div class="checkbox-group">
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="platform_meituan" value="meituan" checked>
+                                        <label for="platform_meituan">美团</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="platform_ctrip" value="ctrip" checked>
+                                        <label for="platform_ctrip">携程</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="platform_fliggy" value="fliggy">
+                                        <label for="platform_fliggy">飞猪</label>
+                                    </div>
+                                    <div class="checkbox-item">
+                                        <input type="checkbox" id="platform_gaode" value="gaode">
+                                        <label for="platform_gaode">高德</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    爬取类型 <span class="required">*</span>
+                                </label>
+                                <div class="radio-group">
+                                    <div class="radio-item">
+                                        <input type="radio" id="type_list" name="crawlType" value="list" checked>
+                                        <label for="type_list">仅列表页</label>
+                                    </div>
+                                    <div class="radio-item">
+                                        <input type="radio" id="type_detail" name="crawlType" value="detail">
+                                        <label for="type_detail">仅详情页</label>
+                                    </div>
+                                    <div class="radio-item">
+                                        <input type="radio" id="type_all" name="crawlType" value="all">
+                                        <label for="type_all">全部</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-section" id="scheduleSection" style="display: none;">
+                            <div class="form-section-title">定时设置</div>
+                            
+                            <div class="form-group">
+                                <label>
+                                    执行频率 <span class="required">*</span>
+                                </label>
+                                <select id="scheduleFrequency" required>
+                                    <option value="">请选择</option>
+                                    <option value="hourly">每小时</option>
+                                    <option value="daily">每天</option>
+                                    <option value="weekly">每周</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    执行时间 <span class="required">*</span>
+                                </label>
+                                <input type="time" id="scheduleTime" required>
+                                <div class="help-text">选择每天执行的具体时间</div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    开始日期 <span class="required">*</span>
+                                </label>
+                                <input type="date" id="startDate" required>
+                            </div>
+
+                            <div class="form-group">
+                                <label>
+                                    结束日期
+                                </label>
+                                <input type="date" id="endDate">
+                                <div class="help-text">留空表示不限制结束时间</div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="window.history.back()">
+                                <i class="fas fa-times"></i> 取消
+                            </button>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-check"></i> 提交任务
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (usernameEl) {
+                        usernameEl.textContent = result.data.real_name || result.data.username || '管理员';
+                    }
+                    return result.data;
+                } else {
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 页面初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentUser();
+        });
+
+        function switchTab(type) {
+            const tabs = document.querySelectorAll('.tab');
+            const scheduleSection = document.getElementById('scheduleSection');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (type === 'scheduled') {
+                scheduleSection.style.display = 'block';
+                document.getElementById('scheduleFrequency').required = true;
+                document.getElementById('scheduleTime').required = true;
+                document.getElementById('startDate').required = true;
+            } else {
+                scheduleSection.style.display = 'none';
+                document.getElementById('scheduleFrequency').required = false;
+                document.getElementById('scheduleTime').required = false;
+                document.getElementById('startDate').required = false;
+            }
+        }
+
+        // 消息提示函数
+        function showToast(message, type = 'info') {
+            let toast = document.getElementById('toast');
+            if (!toast) {
+                toast = document.createElement('div');
+                toast.id = 'toast';
+                toast.className = 'toast';
+                toast.innerHTML = '<i class="fas fa-info-circle"></i><span id="toastMessage"></span>';
+                document.body.appendChild(toast);
+            }
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 添加消息提示样式
+        if (!document.getElementById('toastStyle')) {
+            const style = document.createElement('style');
+            style.id = 'toastStyle';
+            style.textContent = `
+                .toast {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    border-radius: 4px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    z-index: 10000;
+                    display: none;
+                    align-items: center;
+                    gap: 8px;
+                    min-width: 300px;
+                    animation: slideIn 0.3s ease;
+                }
+                .toast.show { display: flex; }
+                .toast.success { background: #f0f7e8; color: #5a7c3a; border: 1px solid #d1e9c1; }
+                .toast.error { background: #fff5f5; color: #c94a4a; border: 1px solid #ffd1d1; }
+                .toast.info { background: #e8f4f8; color: #1a365d; border: 1px solid #c1d9e9; }
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // 侧边栏菜单跳转
+        document.querySelectorAll('.nav-menu a').forEach(link => {
+            link.addEventListener('click', function(e) {
+                const href = this.getAttribute('href');
+                if (href && href !== '#' && !href.startsWith('javascript:')) {
+                    e.preventDefault();
+                    window.location.href = href;
+                }
+            });
+        });
+
+        document.getElementById('taskForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const hotelName = document.getElementById('hotelName').value.trim();
+            if (!hotelName) {
+                showToast('请输入酒店名称', 'error');
+                return;
+            }
+            
+            const platforms = Array.from(document.querySelectorAll('input[name="platforms"]:checked'));
+            if (platforms.length === 0) {
+                showToast('请至少选择一个目标平台', 'error');
+                return;
+            }
+            
+            const btn = document.querySelector('.btn-primary');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 提交中...';
+            
+            setTimeout(() => {
+                showToast('任务创建成功！', 'success');
+                setTimeout(() => {
+                    window.location.href = 'crawl-tasks.html';
+                }, 1500);
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
+

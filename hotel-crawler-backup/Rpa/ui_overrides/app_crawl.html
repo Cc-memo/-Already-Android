@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电脑端 - 创建任务</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 50%, #34495e 100%);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .nav {
+            max-width: 560px;
+            margin: 0 auto 16px;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .nav a {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .nav a:hover { text-decoration: underline; }
+        .container {
+            max-width: 560px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 32px;
+        }
+        h1 {
+            font-size: 22px;
+            color: #2c3e50;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #8c8c8c;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500; font-size: 14px; }
+        .form-group input[type="text"],
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group .hint { font-size: 12px; color: #8c8c8c; margin-top: 6px; }
+        .platforms { display: flex; gap: 16px; flex-wrap: wrap; }
+        .platforms label { display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer; }
+        .platforms input { width: 18px; height: 18px; }
+        .btn-submit {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+        .links { margin-top: 24px; padding-top: 20px; border-top: 1px solid #f0f0f0; }
+        .links a { color: #1a365d; text-decoration: none; font-size: 14px; margin-right: 16px; }
+        .links a:hover { text-decoration: underline; }
+        .toast {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 9999;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { border: 1px solid rgba(34, 197, 94, 0.35); }
+        .toast.error { border: 1px solid rgba(255, 77, 79, 0.35); }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <a href="dashboard.html"><i class="fas fa-home"></i> 首页</a>
+        <a href="crawl-tasks.html"><i class="fas fa-desktop"></i> 电脑端任务列表</a>
+    </nav>
+    <div class="container">
+        <h1><i class="fas fa-desktop"></i> 电脑端 - 创建任务</h1>
+        <p class="subtitle">此处创建的任务由本机 scheduler 领取执行。创建后请在「电脑端任务列表」查看，并运行 scheduler。</p>
+
+        <form id="form">
+            <div class="form-group">
+                <label for="hotelNames">酒店名称（必填）</label>
+                <textarea id="hotelNames" placeholder="每行一个酒店名&#10;例如：美利居酒店(上海人民广场店)"></textarea>
+                <div class="hint">可输入多个酒店，一行一个</div>
+            </div>
+            <div class="form-group">
+                <label for="location">城市</label>
+                <input type="text" id="location" placeholder="例如：上海" value="上海">
+            </div>
+            <div class="form-group">
+                <label>平台（至少选一个）</label>
+                <div class="platforms">
+                    <label><input type="checkbox" name="platform" value="ctrip"> 携程</label>
+                    <label><input type="checkbox" name="platform" value="meituan"> 美团</label>
+                </div>
+            </div>
+            <button type="submit" class="btn-submit" id="btnSubmit">创建任务</button>
+        </form>
+
+        <div class="links">
+            <a href="crawl-tasks.html">电脑端任务列表</a>
+            <a href="dashboard.html">返回首页</a>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        function showToast(msg, type) {
+            var t = document.getElementById('toast');
+            var m = document.getElementById('toastMessage');
+            var i = t.querySelector('i');
+            m.textContent = msg;
+            t.className = 'toast ' + (type || '') + ' show';
+            if (type === 'success') i.className = 'fas fa-check-circle';
+            else if (type === 'error') i.className = 'fas fa-exclamation-circle';
+            else i.className = 'fas fa-info-circle';
+            setTimeout(function() { t.classList.remove('show'); }, 4000);
+        }
+
+        document.getElementById('form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            var hotelNames = (document.getElementById('hotelNames').value || '').trim();
+            var hotels = hotelNames.split(/\n/).map(function(s) { return s.trim(); }).filter(Boolean);
+            var location = (document.getElementById('location').value || '').trim() || '上海';
+            var platforms = Array.from(document.querySelectorAll('input[name="platform"]:checked')).map(function(c) { return c.value; });
+
+            if (!hotels.length) { showToast('请输入至少一个酒店名称', 'error'); return; }
+            if (!platforms.length) { showToast('请至少选择一个平台', 'error'); return; }
+
+            var btn = document.getElementById('btnSubmit');
+            btn.disabled = true;
+            btn.textContent = '创建中...';
+
+            try {
+                var res = await fetch('/api/crawl-tasks/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hotels: hotels, platforms: platforms, location: location, exec_mode: 'local' })
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || data.success === false) {
+                    throw new Error(data.error || '请求失败');
+                }
+                showToast('已创建 ' + (data.data || []).length + ' 个任务。请到电脑端任务列表查看，本机运行 scheduler 后会自动执行。', 'success');
+                document.getElementById('hotelNames').value = '';
+                setTimeout(function() {
+                    if (confirm('是否跳转到电脑端任务列表？')) {
+                        window.location.href = 'crawl-tasks.html';
+                    }
+                }, 800);
+            } catch (err) {
+                showToast(err.message || String(err), 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '创建任务';
+            }
+        });
+    </script>
+</body>
+</html>

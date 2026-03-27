@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手机端 - 任务列表</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; padding: 16px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 20px; margin-bottom: 16px; }
+        .api-group { margin-bottom: 12px; }
+        .api-group input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .status { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .status.queued { background: #fff3e0; color: #e65100; }
+        .status.running { background: #e3f2fd; color: #1565c0; }
+        .status.success { background: #e8f5e9; color: #2e7d32; }
+        .status.failed { background: #ffebee; color: #c62828; }
+        .empty { text-align: center; color: #888; padding: 24px; }
+        .links { margin-top: 16px; }
+        .links a { color: #1a365d; text-decoration: none; font-size: 14px; margin-right: 12px; }
+        .err { color: #c62828; padding: 12px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>手机端 - 任务列表</h1>
+    <div class="api-group">
+        <label>API 地址</label>
+        <input type="text" id="apiBase" value="http://localhost:5000" placeholder="http://localhost:5000">
+    </div>
+    <div id="err" class="err" style="display:none;"></div>
+    <div id="tableWrap"></div>
+    <div class="links">
+        <a href="mobile_create.html">手机端创建任务</a>
+    </div>
+    <script>
+        function apiBase() { return (document.getElementById('apiBase').value || '').trim() || 'http://localhost:5000'; }
+        function statusLabel(s) {
+            var m = { queued: '等待中', running: '执行中', success: '已完成', failed: '失败' };
+            return m[s] || s || '-';
+        }
+        async function load() {
+            var wrap = document.getElementById('tableWrap');
+            var errEl = document.getElementById('err');
+            errEl.style.display = 'none';
+            try {
+                var res = await fetch(apiBase() + '/api/app-crawl-tasks?limit=50', { credentials: 'include', cache: 'no-cache' });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || !data.success) throw new Error(data.error || '加载失败');
+                var tasks = data.data || [];
+                if (!tasks.length) {
+                    wrap.innerHTML = '<div class="empty">暂无任务，请先在手机端创建任务页创建</div>';
+                    return;
+                }
+                var html = '<table><thead><tr><th>酒店</th><th>平台</th><th>状态</th><th>创建时间</th></tr></thead><tbody>';
+                tasks.forEach(function(t) {
+                    var plats = (t.platforms || []).join('、') || '-';
+                    var st = t.status || 'queued';
+                    html += '<tr><td>' + (t.hotel_name || '-') + '</td><td>' + plats + '</td><td><span class="status ' + st + '">' + statusLabel(st) + '</span></td><td>' + (t.created_at || '-') + '</td></tr>';
+                });
+                html += '</tbody></table>';
+                wrap.innerHTML = html;
+            } catch (e) {
+                errEl.textContent = e.message || String(e);
+                errEl.style.display = 'block';
+                wrap.innerHTML = '';
+            }
+        }
+        document.getElementById('apiBase').addEventListener('change', load);
+        load();
+        setInterval(load, 5000);
+    </script>
+</body>
+</html>

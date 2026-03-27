@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手机端 - 任务列表</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; padding: 16px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 20px; margin-bottom: 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f5f5f5; font-weight: 600; }
+        .status { padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .status.queued { background: #fff3e0; color: #e65100; }
+        .status.running { background: #e3f2fd; color: #1565c0; }
+        .status.success { background: #e8f5e9; color: #2e7d32; }
+        .status.failed { background: #ffebee; color: #c62828; }
+        .empty { text-align: center; color: #888; padding: 24px; }
+        .links { margin-top: 16px; }
+        .links a { color: #1a365d; text-decoration: none; font-size: 14px; margin-right: 12px; }
+        .err { color: #c62828; padding: 12px; font-size: 14px; }
+        .btn-del {
+            border: 1px solid #ef9a9a;
+            background: #fff5f5;
+            color: #c62828;
+            border-radius: 4px;
+            padding: 3px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-del:hover { background: #ffebee; }
+        .toolbar { margin-bottom: 10px; display: flex; gap: 8px; align-items: center; }
+        .btn-batch {
+            border: 1px solid #d0d7de;
+            background: #fff;
+            color: #333;
+            border-radius: 4px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .btn-batch-danger {
+            border-color: #ef9a9a;
+            color: #c62828;
+            background: #fff5f5;
+        }
+        .check-col { width: 44px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>手机端 - 任务列表</h1>
+    <div id="err" class="err" style="display:none;"></div>
+    <div id="tableWrap"></div>
+    <div class="links">
+        <a href="mobile_create.html">手机端创建任务</a>
+        <a href="dashboard.html">返回首页</a>
+    </div>
+    <script>
+        function statusLabel(s) {
+            var m = { queued: '等待中', running: '执行中', success: '已完成', failed: '失败' };
+            return m[s] || s || '-';
+        }
+        async function load() {
+            var wrap = document.getElementById('tableWrap');
+            var errEl = document.getElementById('err');
+            errEl.style.display = 'none';
+            try {
+                var res = await fetch('/api/app-crawl-tasks?limit=50', { credentials: 'include', cache: 'no-cache' });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || !data.success) throw new Error(data.error || '加载失败');
+                var tasks = data.data || [];
+                if (!tasks.length) {
+                    wrap.innerHTML = '<div class="empty">暂无任务，请先在手机端创建任务页创建</div>';
+                    return;
+                }
+                var html = ''
+                    + '<div class="toolbar">'
+                    + '  <button id="btnSelectAll" class="btn-batch" type="button">全选</button>'
+                    + '  <button id="btnUnselectAll" class="btn-batch" type="button">取消全选</button>'
+                    + '  <button id="btnDeleteSelected" class="btn-batch btn-batch-danger" type="button">批量删除</button>'
+                    + '</div>';
+                html += '<table><thead><tr><th class="check-col"><input id="checkAll" type="checkbox" /></th><th>酒店</th><th>城市/地址</th><th>平台</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+                tasks.forEach(function(t) {
+                    var plats = (t.platforms || []).join('、') || '-';
+                    var st = t.status || 'queued';
+                    var tid = t.task_id || '';
+                    var safeHotel = (t.hotel_name || '').replace(/"/g, '&quot;');
+                    html += '<tr><td class="check-col"><input class="task-check" type="checkbox" data-task-id="' + tid + '" data-hotel-name="' + safeHotel + '" /></td><td>' + (t.hotel_name || '-') + '</td><td>' + (t.location || '-') + '</td><td>' + plats + '</td><td><span class="status ' + st + '">' + statusLabel(st) + '</span></td><td>' + (t.created_at || '-') + '</td><td><a href="mobile_task_detail.html?task_id=' + encodeURIComponent(tid) + '">查看</a> <button class="btn-del" data-task-id="' + tid + '" data-hotel-name="' + safeHotel + '">删除</button></td></tr>';
+                });
+                html += '</tbody></table>';
+                wrap.innerHTML = html;
+            } catch (e) {
+                errEl.textContent = e.message || String(e);
+                errEl.style.display = 'block';
+                wrap.innerHTML = '';
+            }
+        }
+        async function deleteTask(taskId, hotelName) {
+            var name = hotelName || taskId;
+            if (!taskId) return;
+            if (!window.confirm('确定删除任务「' + name + '」吗？将同时删除该任务的结果数据。')) return;
+            var errEl = document.getElementById('err');
+            errEl.style.display = 'none';
+            try {
+                var res = await fetch('/api/app-crawl-tasks/' + encodeURIComponent(taskId), {
+                    method: 'DELETE',
+                    credentials: 'include'
+                });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || !data.success) throw new Error(data.error || '删除失败');
+                await load();
+            } catch (e) {
+                errEl.textContent = e.message || String(e);
+                errEl.style.display = 'block';
+            }
+        }
+        function getSelectedTasks() {
+            var checks = Array.prototype.slice.call(document.querySelectorAll('.task-check:checked'));
+            return checks.map(function(el) {
+                return {
+                    task_id: el.getAttribute('data-task-id') || '',
+                    hotel_name: el.getAttribute('data-hotel-name') || ''
+                };
+            }).filter(function(x) { return !!x.task_id; });
+        }
+        function setAllChecked(checked) {
+            document.querySelectorAll('.task-check').forEach(function(el) { el.checked = !!checked; });
+            var checkAll = document.getElementById('checkAll');
+            if (checkAll) checkAll.checked = !!checked;
+        }
+        async function deleteTasksBatch(items) {
+            var errEl = document.getElementById('err');
+            errEl.style.display = 'none';
+            var failed = [];
+            for (var i = 0; i < items.length; i++) {
+                var it = items[i];
+                try {
+                    var res = await fetch('/api/app-crawl-tasks/' + encodeURIComponent(it.task_id), {
+                        method: 'DELETE',
+                        credentials: 'include'
+                    });
+                    var data = await res.json().catch(function() { return {}; });
+                    if (!res.ok || !data.success) throw new Error(data.error || '删除失败');
+                } catch (e) {
+                    failed.push((it.hotel_name || it.task_id) + ': ' + (e.message || String(e)));
+                }
+            }
+            await load();
+            if (failed.length) {
+                errEl.textContent = '部分删除失败：' + failed.join('；');
+                errEl.style.display = 'block';
+            }
+        }
+        document.getElementById('tableWrap').addEventListener('click', function(ev) {
+            var btn = ev.target && ev.target.closest ? ev.target.closest('.btn-del') : null;
+            if (btn) {
+                ev.preventDefault();
+                deleteTask(btn.getAttribute('data-task-id') || '', btn.getAttribute('data-hotel-name') || '');
+                return;
+            }
+            var id = ev.target && ev.target.id;
+            if (id === 'btnSelectAll') { setAllChecked(true); return; }
+            if (id === 'btnUnselectAll') { setAllChecked(false); return; }
+            if (id === 'btnDeleteSelected') {
+                var selected = getSelectedTasks();
+                if (!selected.length) {
+                    window.alert('请先勾选要删除的任务');
+                    return;
+                }
+                if (!window.confirm('确定批量删除 ' + selected.length + ' 条任务吗？将同时删除关联结果数据。')) return;
+                deleteTasksBatch(selected);
+                return;
+            }
+            if (id === 'checkAll') {
+                setAllChecked(ev.target.checked);
+                return;
+            }
+        });
+        load();
+        setInterval(load, 5000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+# 代理通自动上架配置文件示例
+# 复制此文件为 config.yaml 并修改配置
+
+# 登录配置
+login:
+  url: "https://你的代理通后台地址"
+  username: "你的用户名"
+  password: "你的密码"
+  use_cookies: true
+  cookies_file: "shangjia_cookies.pkl"
+
+# 上架任务配置
+task:
+  hotels:
+    - "示例酒店1"
+    - "示例酒店2"
+  
+  channels:
+    - "Trip"
+    - "Qunar"
+    - "B2B"
+  
+  room_types:
+    - "大床房"
+    - "双床房"
+  
+  date_start: "2025-01-01"
+  date_end: "2025-12-31"
+  weekdays: []
+  
+  action: "price"
+  value: 968
+
+# 浏览器配置
+browser:
+  headless: false      # true=无头模式, false=显示浏览器
+  slow_mo: 500         # 操作延迟（毫秒），模拟人工操作
+  timeout: 30000       # 页面加载超时（毫秒）
+  use_persistent: true # true=使用持久化上下文（非无痕模式，会保存登录态）, false=无痕模式
+  # 使用本地Chrome和用户数据目录（可选）
+  use_local_chrome: false  # true=使用本地Chrome, false=使用Playwright自带的Chromium
+  chrome_executable: "D:\\yingyong\\tool\\chrome-win\\chrome.exe"  # 本地Chrome路径
+  user_data_dir: "C:\\Users\\你的用户名\\AppData\\Local\\Chromium\\User Data"  # 本地用户数据目录（使用已有登录态）
+  profile_directory: "Default"  # 配置文件目录
+  window_size:
+    width: 1920
+    height: 1080
+
+# 重试配置
+retry:
+  max_attempts: 3
+  retry_delay: 2
+
+# 日志配置
+logging:
+  screenshot_on_error: true
+  screenshot_dir: "screenshots"
+  log_level: "INFO"

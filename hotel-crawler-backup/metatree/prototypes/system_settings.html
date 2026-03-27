@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="_preferences_helper.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-dark: #1a365d;
+            --primary-darker: #2c3e50;
+            --accent-gold: #d4af37;
+            --accent-gold-light: #c9a961;
+            --bg-cream: #f5f5f0;
+            --bg-white: #ffffff;
+            --text-primary: #2c3e50;
+            --text-secondary: #8c8c8c;
+            --border-light: #e8e8e3;
+            --shadow-sm: 0 2px 12px rgba(26, 54, 93, 0.08);
+            --shadow-md: 0 4px 16px rgba(26, 54, 93, 0.12);
+            --shadow-lg: 0 6px 20px rgba(26, 54, 93, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: var(--bg-cream);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 200px;
+            background: linear-gradient(180deg, var(--primary-dark) 0%, var(--primary-darker) 100%);
+            color: white;
+            padding: 20px 0;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .logo {
+            padding: 0 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            margin-bottom: 20px;
+        }
+
+        .logo i {
+            font-size: 24px;
+            margin-right: 8px;
+            color: var(--accent-gold);
+        }
+
+        .logo-text {
+            font-size: 18px;
+            font-weight: 600;
+            font-family: 'Playfair Display', serif;
+            letter-spacing: 0.5px;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            color: rgba(255,255,255,0.65);
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.5;
+            letter-spacing: 0;
+            border-left: 3px solid transparent;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
+
+        .menu-item:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            transform: translateX(2px);
+        }
+
+        .menu-item.active {
+            background: rgba(212, 175, 55, 0.2);
+            color: var(--accent-gold);
+            border-left: 3px solid var(--accent-gold);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .menu-item i {
+            width: 20px;
+            margin-right: 12px;
+            transition: transform 0.3s;
+        }
+
+        .menu-item:hover i {
+            transform: scale(1.1);
+        }
+
+        .main-content {
+            margin-left: 200px;
+            flex: 1;
+        }
+
+        .header {
+            background: var(--bg-white);
+            padding: 16px 24px;
+            box-shadow: var(--shadow-sm);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .breadcrumb {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .breadcrumb a {
+            color: var(--primary-dark);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+
+        .breadcrumb a:hover {
+            color: var(--accent-gold);
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-light) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+            box-shadow: 0 2px 6px rgba(212, 175, 55, 0.3);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .user-avatar:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(212, 175, 55, 0.4);
+        }
+
+        .user-dropdown {
+            position: relative;
+            z-index: 1000;
+        }
+
+        .dropdown-menu {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: var(--bg-white);
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            min-width: 120px;
+            display: none;
+            z-index: 10000;
+            overflow: visible;
+        }
+
+        .dropdown-menu.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #262626;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dropdown-item:hover {
+            background: #F5F5F5;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-darker) 100%);
+            color: white;
+            padding: 32px;
+            border-radius: 12px;
+            margin-bottom: 32px;
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.1) 0%, transparent 70%);
+            animation: pulse 8s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+            font-family: 'Playfair Display', serif;
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .settings-panel {
+            background: var(--bg-white);
+            padding: 28px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-light);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .settings-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--accent-gold) 0%, var(--accent-gold-light) 100%);
+            transform: scaleY(0);
+            transform-origin: top;
+            transition: transform 0.3s;
+        }
+
+        .settings-panel:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .settings-panel:hover::before {
+            transform: scaleY(1);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-light);
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .section-title::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 60px;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent-gold) 0%, transparent 100%);
+        }
+
+        .section-title i {
+            color: var(--accent-gold);
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1.5px solid var(--border-light);
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: all 0.3s;
+            background: var(--bg-white);
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-group .hint {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 12px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .checkbox-item:hover {
+            background: var(--bg-cream);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-gold);
+        }
+
+        .checkbox-item label {
+            margin: 0;
+            font-weight: normal;
+            cursor: pointer;
+            flex: 1;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input:checked + .slider {
+            background: linear-gradient(135deg, var(--accent-gold) 0%, var(--accent-gold-light) 100%);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+
+        .switch-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .switch-label {
+            font-size: 14px;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .btn-primary {
+            padding: 12px 32px;
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-darker) 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(26, 54, 93, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.3), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 54, 93, 0.3);
+        }
+
+        .btn-primary:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            padding: 12px 32px;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            border: 1.5px solid var(--border-light);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-gold);
+            color: var(--accent-gold);
+            background: rgba(212, 175, 55, 0.05);
+            transform: translateY(-1px);
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 16px;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-light);
+        }
+
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            min-width: 320px;
+            animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .toast.show {
+            display: flex;
+        }
+
+        .toast.success {
+            background: linear-gradient(135deg, #f0f7e8 0%, #e1efd1 100%);
+            color: #5a7c3a;
+            border: 1px solid #d1e9c1;
+        }
+
+        .toast.info {
+            background: linear-gradient(135deg, #e8f4f8 0%, #d1e9f1 100%);
+            color: var(--primary-dark);
+            border: 1px solid #c1d9e9;
+        }
+
+        .toast.error {
+            background: linear-gradient(135deg, #fff5f5 0%, #ffebeb 100%);
+            color: #c94a4a;
+            border: 1px solid #ffd1d1;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: linear-gradient(135deg, #F5222D 0%, #ff4d4f 100%);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(245, 34, 45, 0.3);
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .checkbox-group {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <div class="sidebar">
+            <div class="logo">
+                <i class="fas fa-hotel"></i>
+                <span class="logo-text">酒店管理平台</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='dashboard.html'">
+                <i class="fas fa-home"></i>
+                <span>首页</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='crawl-tasks.html'">
+                <i class="fas fa-spider"></i>
+                <span>任务中心</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_query.html'">
+                <i class="fas fa-database"></i>
+                <span>数据管理</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_analysis.html'">
+                <i class="fas fa-chart-line"></i>
+                <span>数据分析</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='data_export.html'">
+                <i class="fas fa-download"></i>
+                <span>数据导出</span>
+            </div>
+            <div class="menu-item" onclick="window.location.href='user_management.html'">
+                <i class="fas fa-users"></i>
+                <span>用户管理</span>
+            </div>
+            <div class="menu-item active">
+                <i class="fas fa-cog"></i>
+                <span>系统设置</span>
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="header">
+                <div class="breadcrumb">
+                    <a href="dashboard.html">首页</a> / <span>系统设置</span>
+                </div>
+                <div class="user-info">
+                    <i class="fas fa-bell" id="notificationIcon" style="color: var(--text-secondary); cursor: pointer; position: relative; font-size: 18px; transition: color 0.3s;">
+                        <span class="notification-badge">3</span>
+                    </i>
+                    <div class="user-dropdown">
+                        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" id="userMenu">
+                            <div class="user-avatar" id="headerUserAvatar">
+                                <i class="fas fa-user"></i>
+                            </div>
+                            <span id="currentUsername" style="font-weight: 500;">加载中...</span>
+                            <i class="fas fa-chevron-down" style="color: var(--text-secondary); font-size: 12px;"></i>
+                        </div>
+                        <div class="dropdown-menu" id="userDropdown">
+                            <div class="dropdown-item" onclick="window.location.href='profile_settings.html'">
+                                <i class="fas fa-user-cog"></i> 个人设置
+                            </div>
+                            <div class="dropdown-item" onclick="logout()">
+                                <i class="fas fa-sign-out-alt"></i> 退出登录
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="content">
+                <div class="page-header">
+                    <div class="page-title">系统设置</div>
+                    <div class="page-subtitle">配置爬取参数、存储设置和日志管理</div>
+                </div>
+
+                <form id="settingsForm">
+                    <!-- 爬取设置 -->
+                    <div class="settings-panel">
+                        <div class="section-title">
+                            <i class="fas fa-spider"></i>
+                            <span>爬取设置</span>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>爬取间隔（秒）</label>
+                                <input type="number" id="crawlInterval" value="5" min="1" max="60">
+                                <div class="hint">两次爬取请求之间的最小间隔时间</div>
+                            </div>
+                            <div class="form-group">
+                                <label>请求超时时间（秒）</label>
+                                <input type="number" id="requestTimeout" value="30" min="5" max="300">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>最大重试次数</label>
+                                <input type="number" id="maxRetries" value="3" min="0" max="10">
+                            </div>
+                            <div class="form-group">
+                                <label>并发爬取数量</label>
+                                <input type="number" id="concurrentCrawl" value="3" min="1" max="10">
+                                <div class="hint">同时进行的爬取任务数量</div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="switch-container">
+                                <label class="switch">
+                                    <input type="checkbox" id="enableProxy">
+                                    <span class="slider"></span>
+                                </label>
+                                <span class="switch-label">启用代理</span>
+                            </div>
+                            <div class="hint">启用后，爬取请求将通过HTTP代理服务器发送。需要配置代理服务器地址和端口（通过环境变量 HTTP_PROXY 或 HTTPS_PROXY，格式：http://proxy.example.com:8080）</div>
+                        </div>
+                    </div>
+
+                    <!-- 存储设置 -->
+                    <div class="settings-panel">
+                        <div class="section-title">
+                            <i class="fas fa-database"></i>
+                            <span>存储设置</span>
+                        </div>
+                        <div class="form-group">
+                            <label>数据保留时间（天）</label>
+                            <input type="number" id="dataRetentionDays" value="365" min="30" max="3650">
+                            <div class="hint">超过此时间的数据将被标记为过期。需要手动点击下方"清理过期数据"按钮进行清理，或配置定时任务自动清理</div>
+                        </div>
+                    </div>
+
+                    <!-- 日志管理 -->
+                    <div class="settings-panel">
+                        <div class="section-title">
+                            <i class="fas fa-file-alt"></i>
+                            <span>日志管理</span>
+                        </div>
+                        <div class="form-group">
+                            <label>日志保留周期（天）</label>
+                            <input type="number" id="logRetentionDays" value="90" min="7" max="365">
+                            <div class="hint">设置日志文件的保留时间。当前项目未启用日志系统，此设置将在未来集成日志系统（如loguru）时生效</div>
+                        </div>
+                    </div>
+
+                    <!-- 数据清理 -->
+                    <div class="settings-panel">
+                        <div class="section-title">
+                            <i class="fas fa-broom"></i>
+                            <span>数据清理</span>
+                        </div>
+                        <div class="form-group">
+                            <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                                根据当前的数据保留设置，清理过期的数据记录。此操作不可恢复，请谨慎操作。
+                            </p>
+                            <button type="button" class="btn-secondary" onclick="cleanupData()" style="background: #ff4d4f; color: white; border-color: #ff4d4f;">
+                                <i class="fas fa-trash-alt"></i> 清理过期数据
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 操作按钮 -->
+                    <div class="settings-panel">
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" onclick="resetForm()">重置</button>
+                            <button type="submit" class="btn-primary">保存设置</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        const API_BASE = window.location.origin + '/api';
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+            
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+            
+            if (type === 'success') {
+                icon.className = 'fas fa-check-circle';
+            } else if (type === 'error') {
+                icon.className = 'fas fa-exclamation-circle';
+            } else {
+                icon.className = 'fas fa-info-circle';
+            }
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        // 退出登录
+        async function logout() {
+            try {
+                await fetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+            } catch (e) {}
+            window.location.href = 'login.html';
+        }
+
+        // 用户下拉菜单
+        const userMenu = document.getElementById('userMenu');
+        const userDropdown = document.getElementById('userDropdown');
+        
+        if (userMenu && userDropdown) {
+            userMenu.addEventListener('click', function(e) {
+                e.stopPropagation();
+                userDropdown.classList.toggle('show');
+            });
+
+            document.addEventListener('click', function() {
+                userDropdown.classList.remove('show');
+            });
+        }
+
+        // 通知图标点击
+        const notificationIcon = document.getElementById('notificationIcon');
+        if (notificationIcon) {
+            notificationIcon.addEventListener('click', function(e) {
+                e.stopPropagation();
+                showToast('您有3条未读通知', 'info');
+            });
+        }
+
+        // 加载用户头像到右上角
+        function loadUserAvatar(userId) {
+            try {
+                const userData = JSON.parse(localStorage.getItem('user_avatar') || '{}');
+                const avatarData = userId ? (userData[userId] || userData['default']) : userData['default'];
+                const headerAvatar = document.getElementById('headerUserAvatar') || document.querySelector('.user-avatar');
+                
+                if (headerAvatar) {
+                    if (avatarData) {
+                        headerAvatar.innerHTML = `<img src="${avatarData}" alt="User Avatar">`;
+                    } else {
+                        headerAvatar.innerHTML = `<i class="fas fa-user"></i>`;
+                    }
+                }
+            } catch (error) {
+                console.error('加载头像失败:', error);
+            }
+        }
+
+        // 获取当前用户信息
+        async function loadCurrentUser() {
+            const usernameEl = document.getElementById('currentUsername');
+            
+            try {
+                const response = await fetch(`${API_BASE}/auth/me`);
+                if (response.status === 401) {
+                    window.location.href = 'login.html';
+                    return null;
+                }
+                if (response.status === 403) {
+                    showToast('账户已禁用，请联系管理员', 'error');
+                    setTimeout(() => window.location.href = 'login.html', 2000);
+                    return null;
+                }
+                const result = await response.json();
+                if (result.success && result.data) {
+                    if (usernameEl) {
+                        usernameEl.textContent = result.data.real_name || result.data.username || '管理员';
+                    }
+                    // 加载用户头像
+                    loadUserAvatar(result.data.id);
+                    return result.data;
+                } else {
+                    if (usernameEl) usernameEl.textContent = '管理员';
+                    return null;
+                }
+            } catch (error) {
+                console.error('获取用户信息失败:', error);
+                if (usernameEl) usernameEl.textContent = '管理员';
+                return null;
+            }
+        }
+
+        // 加载系统设置
+        async function loadSettings() {
+            try {
+                const response = await fetch(`${API_BASE}/settings`);
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        const settings = result.data;
+                        if (settings.crawl_interval !== undefined) document.getElementById('crawlInterval').value = settings.crawl_interval;
+                        if (settings.request_timeout !== undefined) document.getElementById('requestTimeout').value = settings.request_timeout;
+                        if (settings.max_retries !== undefined) document.getElementById('maxRetries').value = settings.max_retries;
+                        if (settings.concurrent_crawl !== undefined) document.getElementById('concurrentCrawl').value = settings.concurrent_crawl;
+                        if (settings.enable_proxy !== undefined) document.getElementById('enableProxy').checked = settings.enable_proxy;
+                        if (settings.data_retention_days !== undefined) document.getElementById('dataRetentionDays').value = settings.data_retention_days;
+                        if (settings.log_retention_days !== undefined) document.getElementById('logRetentionDays').value = settings.log_retention_days;
+                        if (settings.log_retention_days !== undefined) document.getElementById('logRetentionDays').value = settings.log_retention_days;
+                    }
+                }
+            } catch (error) {
+                console.error('加载设置失败:', error);
+            }
+        }
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentUser();
+            loadSettings();
+        });
+
+        // 表单提交
+        document.getElementById('settingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const btn = document.querySelector('.btn-primary');
+            const originalText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '保存中...';
+            
+            const settings = {
+                crawl_interval: parseInt(document.getElementById('crawlInterval').value),
+                request_timeout: parseInt(document.getElementById('requestTimeout').value),
+                max_retries: parseInt(document.getElementById('maxRetries').value),
+                concurrent_crawl: parseInt(document.getElementById('concurrentCrawl').value),
+                enable_proxy: document.getElementById('enableProxy').checked,
+                data_retention_days: parseInt(document.getElementById('dataRetentionDays').value),
+                log_retention_days: parseInt(document.getElementById('logRetentionDays').value),
+                log_retention_days: parseInt(document.getElementById('logRetentionDays').value)
+            };
+
+            fetch(`${API_BASE}/settings`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    showToast('设置已保存成功', 'success');
+                } else {
+                    showToast(result.error || '保存失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('保存设置失败:', error);
+                showToast('保存失败，请稍后重试', 'error');
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            });
+        });
+
+        // 重置表单
+        function resetForm() {
+            if (confirm('确定要重置所有设置吗？这将恢复为默认值。')) {
+                document.getElementById('settingsForm').reset();
+                showToast('设置已重置', 'info');
+            }
+        }
+
+        // 清理过期数据
+        async function cleanupData() {
+            if (!confirm('确定要清理过期数据吗？此操作不可恢复，将根据数据保留时间设置删除过期记录。')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/settings/cleanup`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showToast(result.message || '清理完成', 'success');
+                    if (result.data && result.data.deleted_counts) {
+                        const counts = result.data.deleted_counts;
+                        const details = `删除详情：搜索记录 ${counts.search_records} 条，房型数据 ${counts.room_data} 条，任务记录 ${counts.crawl_tasks} 条，酒店数据 ${counts.hotel_data} 条`;
+                        console.log(details);
+                    }
+                } else {
+                    showToast(result.error || '清理失败', 'error');
+                }
+            } catch (error) {
+                console.error('清理数据失败:', error);
+                showToast('清理失败，请稍后重试', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

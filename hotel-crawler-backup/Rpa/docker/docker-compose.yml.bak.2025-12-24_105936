@@ -1,0 +1,29 @@
+services:
+  app:
+    build: .
+    image: hotel-crawler:latest
+    ulimits:
+      stack: -1
+      memlock: -1
+      nofile:
+        soft: 1048576
+        hard: 1048576
+    mem_limit: 4g
+    environment:
+      DB_TYPE: mysql
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_USER: root
+      DB_PASSWORD: "change_me"
+      DB_NAME: "hotel_data"
+      HEADLESS: "1"
+    depends_on:
+      - db
+    tty: true
+    stdin_open: true
+
+  db:
+    image: docker.m.daocloud.io/library/mariadb:10.11
+    environment:
+      MYSQL_ROOT_PASSWORD: "change_me"
+      MYSQL_DATABASE: "hotel_data"

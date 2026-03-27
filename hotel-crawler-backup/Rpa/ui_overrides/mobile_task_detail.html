@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手机端 - 任务详情</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; padding: 16px; max-width: 720px; margin: 0 auto; }
+        h1 { font-size: 20px; margin-bottom: 16px; }
+        .section { margin-bottom: 20px; }
+        .section h2 { font-size: 16px; color: #333; margin-bottom: 8px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
+        .info table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        .info th { text-align: left; width: 100px; color: #666; padding: 6px 8px 6px 0; }
+        .info td { padding: 6px 0; }
+        .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+        .status.queued { background: #fff3e0; color: #e65100; }
+        .status.running { background: #e3f2fd; color: #1565c0; }
+        .status.success { background: #e8f5e9; color: #2e7d32; }
+        .status.failed { background: #ffebee; color: #c62828; }
+        .result-box { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; font-family: monospace; font-size: 13px; white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow: auto; }
+        .no-result { color: #888; font-style: italic; }
+        .links { margin-top: 20px; }
+        .links a { color: #1a365d; text-decoration: none; font-size: 14px; margin-right: 12px; }
+        .err { color: #c62828; padding: 12px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <h1>手机端 - 任务详情</h1>
+    <div id="err" class="err" style="display:none;"></div>
+    <div id="content"></div>
+    <div class="links">
+        <a href="mobile_task_list.html">返回任务列表</a>
+        <a href="mobile_create.html">创建任务</a>
+        <a href="dashboard.html">返回首页</a>
+    </div>
+    <script>
+        function statusLabel(s) {
+            var m = { queued: '等待中', running: '执行中', success: '已完成', failed: '失败' };
+            return m[s] || s || '-';
+        }
+        async function load() {
+            var taskId = (new URLSearchParams(window.location.search)).get('task_id');
+            if (!taskId) {
+                document.getElementById('content').innerHTML = '<p class="err">缺少 task_id 参数</p>';
+                return;
+            }
+            var errEl = document.getElementById('err');
+            var content = document.getElementById('content');
+            errEl.style.display = 'none';
+            try {
+                var res = await fetch('/api/app-crawl-tasks/' + encodeURIComponent(taskId), { credentials: 'include', cache: 'no-cache' });
+                var data = await res.json().catch(function() { return {}; });
+                if (!res.ok || !data.success) throw new Error(data.error || '加载失败');
+                var t = data.data || {};
+                var html = '<div class="section"><h2>任务信息</h2><table class="info">';
+                html += '<tr><th>任务ID</th><td>' + (t.task_id || '-') + '</td></tr>';
+                html += '<tr><th>酒店</th><td>' + (t.hotel_name || '-') + '</td></tr>';
+                html += '<tr><th>城市/地区</th><td>' + (t.location || '-') + '</td></tr>';
+                html += '<tr><th>平台</th><td>' + ((t.platforms || []).join('、') || t.platform || '-') + '</td></tr>';
+                html += '<tr><th>状态</th><td><span class="status ' + (t.status || 'queued') + '">' + statusLabel(t.status) + '</span></td></tr>';
+                html += '<tr><th>创建时间</th><td>' + (t.created_at || '-') + '</td></tr>';
+                if (t.result_at) html += '<tr><th>结果时间</th><td>' + t.result_at + '</td></tr>';
+                html += '</table></div>';
+                html += '<div class="section"><h2>上报结果数据</h2>';
+                if (t.result) {
+                    html += '<div class="result-box">' + escapeHtml(JSON.stringify(t.result, null, 2)) + '</div>';
+                } else {
+                    html += '<div class="result-box no-result">暂无结果数据（任务未完成或尚未上报）</div>';
+                }
+                html += '</div>';
+                content.innerHTML = html;
+            } catch (e) {
+                errEl.textContent = e.message || String(e);
+                errEl.style.display = 'block';
+                content.innerHTML = '';
+            }
+        }
+        function escapeHtml(s) {
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+        load();
+    </script>
+</body>
+</html>

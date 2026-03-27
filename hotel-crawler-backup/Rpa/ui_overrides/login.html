@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - 酒店信息爬取及管理平台</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 50%, #34495e 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(212, 175, 55, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 80%, rgba(212, 175, 55, 0.08) 0%, transparent 50%);
+            pointer-events: none; /* 关键：不拦截点击，否则输入框/checkbox 会“点不了” */
+        }
+        .login-container {
+            position: relative;
+            z-index: 1; /* 确保在背景层之上 */
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            max-width: 1000px;
+            width: 100%;
+            min-height: 600px;
+        }
+        .login-left {
+            flex: 1;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: white;
+            padding: 60px 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .login-left::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(212, 175, 55, 0.15) 0%, transparent 70%);
+        }
+        .login-left > * { position: relative; z-index: 1; }
+        .login-left .logo { color: #d4af37; font-size: 72px; margin-bottom: 28px; }
+        .login-left h1 { font-size: 36px; font-weight: 600; margin-bottom: 16px; }
+        .login-left p { font-size: 16px; opacity: 0.9; line-height: 1.6; }
+        .features { margin-top: 40px; width: 100%; }
+        .feature-item { display: flex; align-items: center; margin-bottom: 18px; text-align: left; }
+        .feature-icon {
+            width: 36px; height: 36px;
+            background: rgba(212, 175, 55, 0.2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-right: 12px;
+            color: #d4af37;
+        }
+        .feature-text { font-size: 14px; opacity: 0.95; }
+        .login-right {
+            flex: 1;
+            padding: 60px 50px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: #fafafa;
+        }
+        .login-right h2 { font-size: 32px; margin-bottom: 8px; color: #2c3e50; }
+        .login-right .subtitle { color: #8c8c8c; margin-bottom: 28px; }
+        .form-group { margin-bottom: 18px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 500; }
+        .input-container { position: relative; }
+        .input-container i {
+            position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+            color: #8c8c8c;
+        }
+        .input-container input {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: #fff;
+        }
+        .input-container input:focus {
+            border-color: #1a365d;
+            box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.12);
+        }
+        .options { display: flex; justify-content: space-between; align-items: center; margin: 10px 0 18px; }
+        .checkbox { display: flex; align-items: center; gap: 8px; color: #8c8c8c; font-size: 14px; }
+        .checkbox input { width: 16px; height: 16px; }
+        .links { display: flex; gap: 12px; align-items: center; }
+        .link { color: #1a365d; text-decoration: none; font-size: 14px; }
+        .link:hover { text-decoration: underline; }
+        .btn-login {
+            width: 100%;
+            padding: 12px 16px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #1a365d 0%, #2c3e50 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 8px 18px rgba(26, 54, 93, 0.18);
+        }
+        .btn-login:disabled { opacity: 0.7; cursor: not-allowed; }
+        .copyright { margin-top: 26px; text-align: center; color: #8c8c8c; font-size: 12px; }
+
+        .toast {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px 14px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.2s, transform 0.2s;
+            z-index: 9999;
+            border: 1px solid #f0f0f0;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        .toast.success { border-color: rgba(34, 197, 94, 0.35); }
+        .toast.error { border-color: rgba(255, 77, 79, 0.35); }
+        .toast i { color: #1a365d; }
+        .toast.error i { color: #ff4d4f; }
+        .toast.success i { color: #22c55e; }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-left">
+            <div class="logo"><i class="fas fa-hotel"></i></div>
+            <h1>酒店信息爬取及管理平台</h1>
+            <p>高效、精准、智能的酒店数据管理解决方案</p>
+            <div class="features">
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-bolt"></i></div>
+                    <div class="feature-text">多平台自动化爬取</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="feature-text">数据分析与导出</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div class="feature-text">权限与审计基础</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="login-right">
+            <h2>欢迎登录</h2>
+            <div class="subtitle">请输入您的账号信息</div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <div class="input-container">
+                        <i class="fas fa-user"></i>
+                        <input type="text" id="username" placeholder="例如：admin" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <div class="input-container">
+                        <i class="fas fa-lock"></i>
+                        <input type="password" id="password" placeholder="请输入密码" autocomplete="current-password">
+                    </div>
+                </div>
+
+                <div class="options">
+                    <label class="checkbox">
+                        <input type="checkbox" id="rememberMe">
+                        <span>记住我</span>
+                    </label>
+                    <div class="links">
+                        <a href="#" class="link forgot-password">忘记密码？</a>
+                        <a href="register.html" class="link">没有账号？注册</a>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-login">登录</button>
+            </form>
+
+            <div class="copyright">
+                <p>&copy; 2024 酒店信息爬取及管理平台. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">
+        <i class="fas fa-info-circle"></i>
+        <span id="toastMessage"></span>
+    </div>
+
+    <script>
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            const icon = toast.querySelector('i');
+
+            toastMessage.textContent = message;
+            toast.className = 'toast ' + type + ' show';
+
+            if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else icon.className = 'fas fa-info-circle';
+
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.querySelector('.btn-login');
+
+            if (!username) { showToast('请输入用户名', 'error'); return; }
+            if (!password) { showToast('请输入密码', 'error'); return; }
+
+            btn.disabled = true;
+            btn.textContent = '登录中...';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const payload = await res.json().catch(() => ({}));
+                if (!res.ok || payload.success === false) {
+                    throw new Error(payload.error || ('登录失败: ' + res.status));
+                }
+                showToast('登录成功，正在跳转...', 'success');
+                setTimeout(() => { window.location.href = 'dashboard.html'; }, 500);
+            } catch (err) {
+                showToast(err.message || String(err), 'error');
+                btn.disabled = false;
+                btn.textContent = '登录';
+            }
+        });
+
+        document.querySelector('.forgot-password').addEventListener('click', function(e) {
+            e.preventDefault();
+            showToast('忘记密码功能待实现，请联系管理员', 'info');
+        });
+    </script>
+</body>
+</html>
+
