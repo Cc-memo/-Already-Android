@@ -190,15 +190,38 @@ def main():
     print("  轮询间隔:", config.POLL_INTERVAL, "秒")
     print("=" * 60)
 
+    # 方案A调度：按平台冷却（执行完成后至少间隔 PLATFORM_COOLDOWN_SEC）
+    PLATFORM_COOLDOWN_SEC = int(os.environ.get("APP_SCHEDULER_PLATFORM_COOLDOWN_SEC", "120"))
+    managed_platforms = ["xiecheng", "meituan"]
+    last_finished = {p: 0.0 for p in managed_platforms}
+
     while True:
-        ok, task = claim_task()
-        if not ok:
-            print(f"[错误] 领任务失败: {task}")
-            time.sleep(config.POLL_INTERVAL)
-            continue
+        now = time.monotonic()
+        platform_candidates = sorted(
+            managed_platforms,
+            key=lambda p: (last_finished.get(p, 0.0) + PLATFORM_COOLDOWN_SEC),
+        )
+
+        chosen_platform = None
+        task = None
+        ok = True
+        for p in platform_candidates:
+            if now < (last_finished.get(p, 0.0) + PLATFORM_COOLDOWN_SEC):
+                continue
+            ok, task = claim_task(platform=p)
+            if not ok:
+                print(f"[错误] 领任务失败: {task}")
+                ok, task = True, None
+                continue
+            if task:
+                chosen_platform = p
+                break
+
         if not task:
-            print("[无任务] 等待下次轮询...（请在「手机端 - 创建任务」页创建任务）")
-            time.sleep(config.POLL_INTERVAL)
+            next_ready = min(last_finished.get(p, 0.0) + PLATFORM_COOLDOWN_SEC for p in managed_platforms)
+            sleep_sec = max(1, min(config.POLL_INTERVAL, int(next_ready - now) + 1))
+            print(f"[冷却中/无任务] 等待 {sleep_sec}s 后重试（按平台间隔 {PLATFORM_COOLDOWN_SEC}s）")
+            time.sleep(sleep_sec)
             continue
 
         task_id = task.get("task_id", "")
@@ -231,6 +254,9 @@ def main():
                             print(f"    已关闭 App: {pkg}")
                         except Exception as close_err:
                             print(f"    关闭 App 失败（忽略）: {close_err}")
+                # 执行完成后记录冷却时间（即便失败也算“执行过”，避免无限频繁打同一平台）
+                if platform in last_finished:
+                    last_finished[platform] = time.monotonic()
 
             all_success = not platform_errors and bool(platform_results)
             final_result = {
@@ -257,8 +283,6 @@ def main():
             }
             report_result(task_id, False, result=fail_result, error=str(e))
             print("  已上报失败状态")
-
-        time.sleep(1)
 
 
 if __name__ == "__main__":

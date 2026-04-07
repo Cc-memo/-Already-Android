@@ -4,7 +4,7 @@
 """
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from flask import Blueprint, jsonify, request
@@ -18,6 +18,9 @@ APP_DB_NAME = "app_crawl_tasks.sqlite3"
 
 def _now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def _dt_to_str(dt: datetime) -> str:
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def init_app_crawl_task_db():
@@ -99,6 +102,41 @@ def init_app_crawl_task_db():
                     cursor.execute(f"ALTER TABLE app_crawl_tasks ADD COLUMN {col} {spec}")
                 except Exception:
                     pass
+        conn.commit()
+    finally:
+        conn.close()
+
+def init_app_crawl_cooldown_db():
+    """
+    初始化 app_crawl_cooldowns 表：
+    - 以 (user_id, platform) 作为唯一键，记录该账号在该平台“上次上报完成时间”
+    - 用于 claim 时做冷却过滤（节流）
+    """
+    sql_sqlite = """
+        CREATE TABLE IF NOT EXISTS app_crawl_cooldowns (
+            user_id INTEGER NOT NULL,
+            platform TEXT NOT NULL,
+            last_reported_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            PRIMARY KEY (user_id, platform)
+        )
+    """
+    sql_mysql = """
+        CREATE TABLE IF NOT EXISTS app_crawl_cooldowns (
+            user_id INT NOT NULL,
+            platform VARCHAR(20) NOT NULL,
+            last_reported_at VARCHAR(30) NOT NULL,
+            updated_at VARCHAR(30) NOT NULL,
+            PRIMARY KEY (user_id, platform)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    """
+    conn = db.get_connection(APP_DB_NAME)
+    try:
+        cursor = conn.cursor()
+        if db.config["db_type"] == "mysql":
+            cursor.execute(sql_mysql)
+        else:
+            cursor.execute(sql_sqlite)
         conn.commit()
     finally:
         conn.close()
@@ -200,24 +238,30 @@ def api_create():
             hotel_name = (str(h) or "").strip()
             if not hotel_name:
                 continue
-            task_id = str(uuid.uuid4())
-            platforms_json = json.dumps(platforms, ensure_ascii=False)
-            platform_first = (platforms[0] if platforms else "ctrip").strip().lower()
-            db.execute(
-                """INSERT INTO app_crawl_tasks
-                   (task_id, created_at, updated_at, started_at, finished_at, status, hotel_name, location, check_in, check_out, platforms_json, progress, current_platform, error, results_json, user_id, platform)
-                   VALUES (?, ?, ?, NULL, NULL, 'queued', ?, ?, ?, ?, ?, 0, NULL, NULL, NULL, ?, ?)""",
-                (task_id, now, now, hotel_name, location, check_in, check_out, platforms_json, user_id, platform_first),
-                sqlite_name=APP_DB_NAME,
-            )
-            created.append({
-                "task_id": task_id,
-                "hotel_name": hotel_name,
-                "location": location,
-                "platforms": platforms,
-                "status": "queued",
-                "created_at": now,
-            })
+            # 方案A：拆成“单平台任务”
+            # 同一酒店如果选择了多个 platforms，则为每个平台创建一条独立 task，
+            # 这样 scheduler 可以按 platform 轮询并对每个平台做独立冷却控制。
+            for p in platforms:
+                p = str(p or "").strip().lower()
+                if not p:
+                    continue
+                task_id = str(uuid.uuid4())
+                platforms_json = json.dumps([p], ensure_ascii=False)
+                db.execute(
+                    """INSERT INTO app_crawl_tasks
+                       (task_id, created_at, updated_at, started_at, finished_at, status, hotel_name, location, check_in, check_out, platforms_json, progress, current_platform, error, results_json, user_id, platform)
+                       VALUES (?, ?, ?, NULL, NULL, 'queued', ?, ?, ?, ?, ?, 0, NULL, NULL, NULL, ?, ?)""",
+                    (task_id, now, now, hotel_name, location, check_in, check_out, platforms_json, user_id, p),
+                    sqlite_name=APP_DB_NAME,
+                )
+                created.append({
+                    "task_id": task_id,
+                    "hotel_name": hotel_name,
+                    "location": location,
+                    "platforms": [p],
+                    "status": "queued",
+                    "created_at": now,
+                })
         return jsonify({"success": True, "data": created, "total": len(created)})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
@@ -253,28 +297,126 @@ def api_claim():
     """领一条 status=queued 的任务，原子更新为 running 并返回"""
     try:
         platform = (request.args.get("platform") or "").strip() or None
+        # 冷却（秒）：默认 120 秒 = 2 分钟
+        cooldown_sec = int(request.args.get("cooldown_sec") or 0) or int(
+            request.args.get("cooldown") or 0
+        ) or int(
+            # env 可用于全局配置
+            __import__("os").environ.get("APP_CRAWL_PLATFORM_COOLDOWN_SEC", "120")
+        )
+        # running 超时回收（秒）：默认 15 分钟
+        running_timeout_sec = int(
+            __import__("os").environ.get("APP_CRAWL_RUNNING_TIMEOUT_SEC", str(15 * 60))
+        )
         conn = db.get_connection(APP_DB_NAME)
         try:
             cursor = conn.cursor()
             is_mysql = db.config["db_type"] == "mysql"
             ph = "%s" if is_mysql else "?"
             now = _now_str()
+            now_dt = datetime.now()
+
+            # 1) running 超时回收：started_at 过久未完成的任务回到 queued，避免“卡死”
+            try:
+                cutoff_dt = now_dt - timedelta(seconds=running_timeout_sec)
+                cutoff = _dt_to_str(cutoff_dt)
+                if is_mysql:
+                    cursor.execute(
+                        "UPDATE app_crawl_tasks SET status='queued', updated_at=%s, error=%s "
+                        "WHERE status='running' AND started_at IS NOT NULL AND started_at < %s",
+                        (now, "requeued: running timeout", cutoff),
+                    )
+                else:
+                    cursor.execute(
+                        "UPDATE app_crawl_tasks SET status='queued', updated_at=?, error=? "
+                        "WHERE status='running' AND started_at IS NOT NULL AND started_at < ?",
+                        (now, "requeued: running timeout", cutoff),
+                    )
+                conn.commit()
+            except Exception:
+                # 不阻塞 claim；回收失败就忽略
+                pass
+
             where = "status = 'queued'"
             params = []
             if platform:
-                where += " AND platforms_json LIKE " + ph
-                params.append(f"%{platform}%")
+                # 任务表里同时有 platform 列与 platforms_json（历史兼容）；优先用 platform
+                where += f" AND (platform = {ph} OR platforms_json LIKE {ph})"
+                params.extend([platform, f"%{platform}%"])
+
+            # 2) 冷却过滤：根据 (user_id, platform) 的 last_reported_at 过滤掉未到点的任务
+            eligible_cutoff_dt = now_dt - timedelta(seconds=cooldown_sec)
+            eligible_cutoff = _dt_to_str(eligible_cutoff_dt)
+
             if is_mysql:
                 conn.autocommit(False)
                 try:
-                    cursor.execute(
-                        f"SELECT task_id FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 1 FOR UPDATE",
-                        tuple(params),
-                    )
+                    cursor.execute(f"""
+                        SELECT t.task_id
+                        FROM app_crawl_tasks t
+                        LEFT JOIN app_crawl_cooldowns c
+                          ON c.user_id = t.user_id AND c.platform = t.platform
+                        WHERE {where}
+                          AND (c.last_reported_at IS NULL OR c.last_reported_at <= %s)
+                        ORDER BY t.created_at ASC
+                        LIMIT 1
+                        FOR UPDATE
+                    """, tuple(params + [eligible_cutoff]))
                     row = cursor.fetchone()
                     if not row:
                         conn.rollback()
-                        return jsonify({"success": True, "task": None})
+                        # 判断是否“队列为空”还是“被冷却挡住”
+                        cursor.execute(
+                            f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where}",
+                            tuple(params),
+                        )
+                        cnt_row = cursor.fetchone()
+                        queued_count = 0
+                        if cnt_row is not None:
+                            queued_count = (cnt_row.get("COUNT(1)") if isinstance(cnt_row, dict) else cnt_row[0]) or 0
+                        if queued_count <= 0:
+                            return jsonify({"success": True, "task": None})
+
+                        # 计算 next_ready_at：找一批最早的 queued 任务，对照冷却表求最小 next_ready
+                        cursor.execute(
+                            f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 100",
+                            tuple(params),
+                        )
+                        pairs = cursor.fetchall() or []
+                        # 去重
+                        uniq = []
+                        seen = set()
+                        for r in pairs:
+                            uid = r.get("user_id") if isinstance(r, dict) else r[0]
+                            plat = r.get("platform") if isinstance(r, dict) else r[1]
+                            key = (int(uid or 0), str(plat or ""))
+                            if key in seen:
+                                continue
+                            seen.add(key)
+                            uniq.append(key)
+                        next_ready_at = None
+                        if uniq:
+                            # 查询冷却表
+                            # 逐个查（数量<=100，简单可靠）
+                            for uid, plat in uniq:
+                                cursor.execute(
+                                    "SELECT last_reported_at FROM app_crawl_cooldowns WHERE user_id=%s AND platform=%s",
+                                    (uid, plat),
+                                )
+                                cr = cursor.fetchone()
+                                last = (cr.get("last_reported_at") if isinstance(cr, dict) else (cr[0] if cr else None)) if cr else None
+                                if not last:
+                                    # 没有冷却记录意味着可立即执行；但这里未选出 eligible 行，说明多半平台/字段异常，兜底 next_ready=now
+                                    cand = now
+                                else:
+                                    try:
+                                        last_dt = datetime.strptime(str(last), "%Y-%m-%d %H:%M:%S")
+                                        cand = _dt_to_str(last_dt + timedelta(seconds=cooldown_sec))
+                                    except Exception:
+                                        cand = now
+                                if (next_ready_at is None) or (cand < next_ready_at):
+                                    next_ready_at = cand
+                        return jsonify({"success": True, "task": None, "reason": "cooldown", "next_ready_at": next_ready_at})
                     task_id = row["task_id"] if isinstance(row, dict) else row[0]
                     cursor.execute(
                         "UPDATE app_crawl_tasks SET status = 'running', updated_at = %s, started_at = %s WHERE task_id = %s",
@@ -286,10 +428,60 @@ def api_claim():
                 finally:
                     conn.autocommit(True)
             else:
-                cursor.execute(f"SELECT * FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 1", tuple(params))
+                cursor.execute(f"""
+                    SELECT t.*
+                    FROM app_crawl_tasks t
+                    LEFT JOIN app_crawl_cooldowns c
+                      ON c.user_id = t.user_id AND c.platform = t.platform
+                    WHERE {where}
+                      AND (c.last_reported_at IS NULL OR c.last_reported_at <= ?)
+                    ORDER BY t.created_at ASC
+                    LIMIT 1
+                """, tuple(params + [eligible_cutoff]))
                 row = cursor.fetchone()
                 if not row:
-                    return jsonify({"success": True, "task": None})
+                    cursor.execute(f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where}", tuple(params))
+                    cnt_row = cursor.fetchone()
+                    queued_count = (cnt_row[0] if cnt_row else 0) or 0
+                    if queued_count <= 0:
+                        return jsonify({"success": True, "task": None})
+
+                    cursor.execute(
+                        f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 100",
+                        tuple(params),
+                    )
+                    pairs = cursor.fetchall() or []
+                    uniq = []
+                    seen = set()
+                    for r in pairs:
+                        uid = r[0]
+                        plat = r[1]
+                        key = (int(uid or 0), str(plat or ""))
+                        if key in seen:
+                            continue
+                        seen.add(key)
+                        uniq.append(key)
+                    next_ready_at = None
+                    if uniq:
+                        for uid, plat in uniq:
+                            cursor.execute(
+                                "SELECT last_reported_at FROM app_crawl_cooldowns WHERE user_id=? AND platform=?",
+                                (uid, plat),
+                            )
+                            cr = cursor.fetchone()
+                            last = (cr[0] if cr else None) if cr else None
+                            if not last:
+                                cand = now
+                            else:
+                                try:
+                                    last_dt = datetime.strptime(str(last), "%Y-%m-%d %H:%M:%S")
+                                    cand = _dt_to_str(last_dt + timedelta(seconds=cooldown_sec))
+                                except Exception:
+                                    cand = now
+                            if (next_ready_at is None) or (cand < next_ready_at):
+                                next_ready_at = cand
+                    return jsonify({"success": True, "task": None, "reason": "cooldown", "next_ready_at": next_ready_at})
+
                 row = dict(row)
                 task_id = row["task_id"]
                 cursor.execute(
@@ -336,6 +528,39 @@ def api_report():
             (status, now, now, results_json, error_msg or None, task_id),
             sqlite_name=APP_DB_NAME,
         )
+
+        # 更新冷却表：按 (user_id, platform) 记录上次上报完成时间（无论 success/failed 都更新）
+        try:
+            task_row = db.query_one(
+                "SELECT user_id, platform FROM app_crawl_tasks WHERE task_id = ?",
+                (task_id,),
+                sqlite_name=APP_DB_NAME,
+            )
+            uid = None
+            plat = None
+            if task_row:
+                uid = getattr(task_row, "user_id", None) or (task_row.get("user_id") if hasattr(task_row, "get") else None)
+                plat = getattr(task_row, "platform", None) or (task_row.get("platform") if hasattr(task_row, "get") else None)
+            if uid is not None and plat:
+                # sqlite: INSERT OR REPLACE；mysql: ON DUPLICATE KEY UPDATE
+                if db.config["db_type"] == "mysql":
+                    db.execute(
+                        "INSERT INTO app_crawl_cooldowns (user_id, platform, last_reported_at, updated_at) "
+                        "VALUES (%s, %s, %s, %s) "
+                        "ON DUPLICATE KEY UPDATE last_reported_at=VALUES(last_reported_at), updated_at=VALUES(updated_at)",
+                        (int(uid), str(plat), now, now),
+                        sqlite_name=APP_DB_NAME,
+                    )
+                else:
+                    db.execute(
+                        "INSERT OR REPLACE INTO app_crawl_cooldowns (user_id, platform, last_reported_at, updated_at) VALUES (?, ?, ?, ?)",
+                        (int(uid), str(plat), now, now),
+                        sqlite_name=APP_DB_NAME,
+                    )
+        except Exception:
+            # 冷却更新失败不影响 report 主流程
+            pass
+
         # 仅在有结果时写入 app_hotel_search_results（失败时 result 可能为 None，部分库不允许 results_json 为 NULL）
         if results_json is not None:
             try:

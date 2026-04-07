@@ -441,12 +441,14 @@ def _tap_first_result_and_verify_leave_search_page(
             if not xml_after:
                 continue
             last_xml_after = xml_after
-            # 如果点击直接进入“热卖排行/NO.1榜单”，则认为这不是我们要的酒店精确卡片
-            hot_rank_markers = ("热卖排行", "热卖排名", "热卖排行榜", "热卖榜", "NO.1", "NO.2", "NO.3")
-            if any(m in xml_after for m in hot_rank_markers):
-                return False
+            # 如果点击直接进入“热卖榜单页”，则认为这不是我们要的酒店精确卡片。
+            # 但注意：卡片内部可能含有“酒店热卖 No.1”标签（你圈的红框），
+            # 这类不应当直接判为榜单页。故这里移除 NO.1/NO.2/NO.3 的判定。
+            hot_rank_markers = ("热卖排行", "热卖排名", "热卖排行榜", "热卖榜")
             if _xml_looks_like_main_hotel_inquiry(xml_after):
                 return True
+            if any(m in xml_after for m in hot_rank_markers):
+                return False
             # 如果已经看不到子页 marker，先做一次二次确认：
             # - 若第二次出现热卖榜单标记，则失败
             # - 若第二次仍不在子页且无热卖标记，则认为离开成功
@@ -454,10 +456,10 @@ def _tap_first_result_and_verify_leave_search_page(
                 time.sleep(0.35)
                 xml2 = _safe_get_ui_xml_via_u2(device_id, retry=1, sleep_sec=0.15)
                 if xml2:
-                    if any(m in xml2 for m in hot_rank_markers):
-                        return False
                     if _xml_looks_like_main_hotel_inquiry(xml2):
                         return True
+                    if any(m in xml2 for m in hot_rank_markers):
+                        return False
                     if "htl_x_dtl_header_tab_exposure" in xml2 or "查看房型" in xml2:
                         return True
                     return True
@@ -490,7 +492,9 @@ def _name_search_result_tap_xy(device_id: Optional[str], row_index: int) -> Tupl
     sw, sh = _get_screen_size_via_adb(device_id)
     # 你要求点“这一列的最右边”，减少点中间触发其它控件/分组入口的概率
     x = int(sw * 0.68)
-    y_rel = (0.215, 0.275, 0.335)
+    # 红框“热卖 No.1”一般在卡片上半段附近触发，手动可用“右上”避开。
+    # 因此这里把候选点击 y 相对坐标整体上移（更靠上）。
+    y_rel = (0.175, 0.235, 0.295)
     yi = y_rel[min(max(row_index, 0), len(y_rel) - 1)]
     return x, int(sh * yi)
 
@@ -507,23 +511,16 @@ def _tap_name_search_hotel_result_leave(
     """
     # 这些词指向“榜单/热卖分组框”，不应被当成具体酒店卡片
     excluded_group_kw = (
-        "热卖",
-        "酒店热卖",
+        # 这里排除“真正的热卖榜单分组/榜单入口”即可；
+        # 不要排除卡片内部的“酒店热卖 No.1”标签，否则会影响命中目标酒店。
         "热卖排名",
         "热卖排行榜",
         "热卖榜",
         "热卖排行",
-        "榜",
-        "排名",
-        "NO.",
-        "NO.1",
-        "NO.2",
-        "NO.3",
         "舒适型",
         "低价",
         "低价房",
-        "热卖 No",
-        "热卖排名",
+        # 其余更像“标签”的词（如 NO.1/酒店热卖/热卖）不在此排除
     )
 
     def _subtree_text(n: ET.Element) -> str:
@@ -566,8 +563,9 @@ def _tap_name_search_hotel_result_leave(
                 candidates.sort(key=lambda x: x[0])
                 for _, _, b in candidates[:6]:
                     l, t, r, bb = b
-                    x = int(l + (r - l) * 0.75)
-                    y = int((t + bb) / 2)
+                    x = int(l + (r - l) * 0.88)
+                    # 点卡片右侧“上半段”，避开红框“热卖 No.1”触发区域
+                    y = int(t + (bb - t) * 0.32)
                     if _tap_first_result_and_verify_leave_search_page(device_factory, device_id, x=x, y=y):
                         return True
     except Exception:
@@ -1007,15 +1005,13 @@ def open_hotel_from_result(device_factory, device_id: Optional[str], hotel_name:
     # 即使节点的 text/desc 里包含酒店名，也可能来自“热卖榜单/排名”卡片，
     # 这种卡片要跳过，避免点到榜单页。
     excluded_group_kw_for_target = (
-        "热卖",
-        "酒店热卖",
+        # 注意：目标酒店卡片内部可能带有“酒店热卖 No.1”标签，
+        # 不能把这类普通标签当成“榜单页”去过滤，否则会误跳过目标酒店。
+        # 因此仅保留更像“榜单页”的词。
         "热卖排行",
-        "榜",
-        "排名",
-        "NO.",
-        "NO.1",
-        "NO.2",
-        "NO.3",
+        "热卖排名",
+        "热卖排行榜",
+        "热卖榜",
         "舒适型",
         "低价",
         "低价房",
@@ -1067,14 +1063,11 @@ def open_hotel_from_result(device_factory, device_id: Optional[str], hotel_name:
         return any(
             k in xml_text
             for k in (
+                # 同理：不要把卡片内“热卖 No.1”当作榜单页
                 "热卖排名",
                 "热卖排行榜",
                 "热卖排行",
                 "热卖榜",
-                "热卖",
-                "NO.1",
-                "NO.2",
-                "NO.3",
             )
         )
 
@@ -1095,16 +1088,11 @@ def open_hotel_from_result(device_factory, device_id: Optional[str], hotel_name:
             candidates: list[ET.Element] = []
             # 这些词高度指向“榜单/热卖分组框”，不应该作为具体酒店卡片点击
             excluded_group_kw = (
-                "热卖",
-                "酒店热卖",
-                "榜",
-                "排名",
-                "No.",
-                "No.1",
-                "NO.",
-                "NO.1",
-                "NO.2",
-                "NO.3",
+                # 只排除更像“榜单页”的词；卡片内标签不影响选酒店主体
+                "热卖排行",
+                "热卖排名",
+                "热卖排行榜",
+                "热卖榜",
                 "舒适型",
                 "低价",
                 "低价房",
@@ -1157,8 +1145,9 @@ def open_hotel_from_result(device_factory, device_id: Optional[str], hotel_name:
                 bbb = _parse_bounds(c.attrib.get("bounds", ""))
                 if bbb:
                     l, t, r, bb = bbb
-                    tap_x = int(l + (r - l) * 0.75)
-                    tap_y = int((t + bb) / 2)
+                    tap_x = int(l + (r - l) * 0.88)
+                    # 点右侧上半段，避开热卖 No.1 行
+                    tap_y = int(t + (bb - t) * 0.32)
                 else:
                     tap_x, tap_y = center
 
@@ -1208,8 +1197,9 @@ def open_hotel_from_result(device_factory, device_id: Optional[str], hotel_name:
         b_tn = _parse_bounds(tn.attrib.get("bounds", ""))
         if b_tn:
             l, t, r, bb = b_tn
-            tap_x = int(l + (r - l) * 0.75)  # 点右侧主体
-            tap_y = int((t + bb) / 2)
+            tap_x = int(l + (r - l) * 0.88)  # 点右侧主体
+            # 点右侧上半段，避开热卖 No.1 行
+            tap_y = int(t + (bb - t) * 0.32)
         else:
             center = _center_of(tn.attrib.get("bounds", ""))
             if not center:

@@ -265,9 +265,11 @@ def extract_meituan_page_info(xml_str: str) -> dict:
         items.append((top, text))
     items.sort(key=lambda x: x[0])
 
-    # 顶部区域尝试酒店名：含「酒店」「店」「宾馆」「民宿」且长度适中
+    # 尝试酒店名：含「酒店」「店」「宾馆」「民宿」且长度适中
+    # 注意：不同机型/页面滚动后，酒店名在 XML 中的 top 位置可能会变低，
+    # 因此不建议只限制在很小的 top 区间内。
     for top, t in items:
-        if top > 700:
+        if top > 2000:
             break
         t = t.strip()
         if 5 <= len(t) <= 55 and ("酒店" in t or "宾馆" in t or "民宿" in t) and "预订" not in t and "详情" not in t and "送" not in t:
@@ -275,7 +277,7 @@ def extract_meituan_page_info(xml_str: str) -> dict:
             break
     # 地址：含区/路/号/弄/街 或 xxx地区·xxx 格式
     for top, t in items:
-        if top > 1200:
+        if top > 2500:
             break
         t = t.strip()
         if 8 <= len(t) <= 100:

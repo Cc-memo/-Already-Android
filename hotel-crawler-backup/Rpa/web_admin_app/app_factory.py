@@ -6,7 +6,12 @@ from flask_cors import CORS
 from . import auth
 from .auth import require_login_for_api
 from .crawl_tasks import bp as crawl_tasks_bp, init_crawl_task_db
-from .app_crawl_tasks import bp as app_crawl_tasks_bp, init_app_crawl_task_db, init_app_hotel_search_results_db
+from .app_crawl_tasks import (
+    bp as app_crawl_tasks_bp,
+    init_app_crawl_cooldown_db,
+    init_app_crawl_task_db,
+    init_app_hotel_search_results_db,
+)
 from .metatree_tasks import bp as metatree_bp, init_metatree_task_db, try_import_metatree
 from .rpa_routes import bp as rpa_bp
 from .settings import bp as settings_bp, init_settings_db
@@ -43,6 +48,7 @@ def create_app() -> Flask:
     init_metatree_task_db()
     init_crawl_task_db()
     init_app_crawl_task_db()
+    init_app_crawl_cooldown_db()
     init_app_hotel_search_results_db()
     init_settings_db()
     # 初始化业务数据库（search_records/room_data），兼容原 Rpa API

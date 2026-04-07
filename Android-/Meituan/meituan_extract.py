@@ -9,7 +9,7 @@ meituan_extract.py：美团酒店房型套餐提取并汇总为 1.json。
 用法：
   python meituan_extract.py                    # 使用默认 XML 路径 ../xml/22.xml
   python meituan_extract.py ../xml/22.xml      # 指定 XML 文件
-  python meituan_extract.py --device           # 从设备多屏下滑抓取并解析（需 uiautomator2，请先手动切到「预订」Tab 并确保首屏可见第一个房型）
+  python meituan_extract.py --device           # 先展开滑到底 → 回顶 → 再多屏解析（需 uiautomator2，请先切到「预订」Tab）
 """
 
 from __future__ import annotations
@@ -26,6 +26,43 @@ MEITUAN_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(MEITUAN_DIR)
 if MEITUAN_DIR not in sys.path:
     sys.path.insert(0, MEITUAN_DIR)
+
+
+def _window_wh(d) -> tuple[int, int]:
+    """返回 (width, height)，失败时用常见竖屏占位。"""
+    try:
+        w, h = d.window_size()
+        return max(int(w), 320), max(int(h), 480)
+    except Exception:
+        return 1080, 2340
+
+
+def swipe_list_finger_down(d, duration: float = 0.14) -> None:
+    """
+    仅在屏幕中下部的房型列表区域滑动：手指从上往下拖（y 增大），
+    列表内容上移，用于回顶，避免从屏幕最上沿滑触发展开头图/视频。
+    """
+    w, h = _window_wh(d)
+    x = int(w * 0.48)
+    y1 = int(h * 0.56)
+    y2 = int(h * 0.84)
+    if y2 - y1 < 280:
+        y2 = min(h - 80, y1 + 420)
+    d.swipe(x, y1, x, y2, duration=duration)
+
+
+def swipe_list_finger_up(d, duration: float = 0.4) -> None:
+    """
+    仅在列表安全区：手指从下往上拖（y 减小），列表内容下移，浏览下方房型。
+    起点取屏幕偏下，避免划入顶部轮播区。
+    """
+    w, h = _window_wh(d)
+    x = int(w * 0.48)
+    y1 = int(h * 0.82)
+    y2 = int(h * 0.50)
+    if y1 - y2 < 280:
+        y1 = min(h - 100, y2 + 450)
+    d.swipe(x, y1, x, y2, duration=duration)
 
 
 def _date_md_to_iso(md: str, ref: datetime) -> str:
@@ -387,6 +424,119 @@ def _expand_folded_rooms(d, device_id: str | None, max_rounds: int = 5) -> None:
         time.sleep(0.5)
 
 
+def _expand_visible_folds(d, xml: str, screen_label: str) -> str:
+    """点击当前屏「查看全部/剩余房型」与折叠箭头，返回更新后的 hierarchy XML。"""
+    expand_buttons = _find_expand_room_buttons(xml)
+    chevron_buttons = _find_collapsed_chevron_buttons(xml)
+    chevron_coords = [(x, y) for x, y, _ in chevron_buttons]
+    all_expand = expand_buttons + chevron_coords
+    if not all_expand:
+        return xml
+    print(
+        f"  {screen_label}: 找到 {len(expand_buttons)} 处折叠文案、"
+        f"{len(chevron_buttons)} 处折叠箭头，逐个点击…"
+    )
+    tried_rooms: set[str] = set()
+    for click_round in range(10):
+        new_chevrons = _find_collapsed_chevron_buttons(xml, skip_rooms=tried_rooms)
+        new_expands = _find_expand_room_buttons(xml)
+        if not new_chevrons and not new_expands:
+            break
+        if new_expands:
+            x, y = new_expands[0]
+            print(f"    round {click_round + 1}: 文案展开 ({x},{y})")
+        else:
+            x, y, rname = new_chevrons[0]
+            tried_rooms.add(rname)
+            print(f"    round {click_round + 1}: 箭头「{rname}」({x},{y})")
+        try:
+            d.click(x, y)
+        except Exception:
+            pass
+        time.sleep(0.8)
+        try:
+            xml = d.dump_hierarchy()
+        except Exception:
+            break
+        if not xml or "<" not in xml:
+            break
+    return xml
+
+
+def _scroll_list_to_top(d, max_swipes: int = 28) -> None:
+    """
+    尽快回到房型列表顶部：使用 swipe_list_finger_down，仅在屏高中部～偏下区域滑动，
+    避免从屏幕顶端滑触发展开头图/视频。每轮连滑 2 次再 dump；hash 连续 2 次相同视为到顶。
+    """
+    print("  [回顶] 快速上滑回列表顶部（连滑 + 间歇校验）…")
+    last_xml_hash = None
+    same_hash_count = 0
+    for _ in range(max_swipes):
+        for _ in range(2):
+            try:
+                swipe_list_finger_down(d, duration=0.14)
+            except Exception as e:
+                print(f"  [回顶] 滑动异常: {e}")
+                break
+            time.sleep(0.05)
+        try:
+            xml = d.dump_hierarchy()
+        except Exception:
+            break
+        if not xml or "<" not in xml:
+            break
+        h = hash(xml)
+        if h == last_xml_hash:
+            same_hash_count += 1
+            if same_hash_count >= 2:
+                print("  [回顶] 已到顶部（界面连续不变）。")
+                break
+        else:
+            same_hash_count = 0
+        last_xml_hash = h
+        time.sleep(0.08)
+    time.sleep(0.4)
+
+
+def _pass_expand_only_to_bottom(d, max_swipes: int, swipe_sleep: float) -> None:
+    """阶段1：下滑到列表底部，每屏仅展开折叠，不解析房型。"""
+    print("  [1/3] 展开阶段：滑到底并展开各屏折叠…")
+    last_xml_hash = None
+    same_hash_count = 0
+    for i in range(max_swipes):
+        if i == 0:
+            time.sleep(1.2)
+        try:
+            xml = d.dump_hierarchy()
+        except Exception as e:
+            if i == 0:
+                print(f"dump 失败: {e}")
+            break
+        if not xml or "<" not in xml:
+            if i == 0:
+                print("未获取到 UI 树，请确认当前在美团酒店房型列表页。")
+            break
+
+        xml = _expand_visible_folds(d, xml, f"展开-第{i + 1}屏")
+
+        xml_hash = hash(xml)
+        if xml_hash == last_xml_hash:
+            same_hash_count += 1
+            if same_hash_count >= 2:
+                print("  [展开阶段] 连续 2 屏 UI 相同，已滑到底。")
+                break
+        else:
+            same_hash_count = 0
+        last_xml_hash = xml_hash
+
+        try:
+            swipe_list_finger_up(d, duration=0.42)
+        except Exception as e:
+            print(f"  [展开阶段] 滑动异常: {e}")
+            break
+        time.sleep(swipe_sleep)
+
+
 def collect_all_rooms_from_device(
     device_id: str | None = None,
     max_swipes: int = 40,
@@ -394,7 +544,7 @@ def collect_all_rooms_from_device(
     scroll_to_top: bool = False,
 ):
     """
-    从设备反复 dump + 下滑，收集多屏房型套餐并去重。
+    从设备采集多屏房型：先展开阶段滑到底并全部展开 → 回顶 → 再从顶部下滑解析合并去重。
     返回 (all_rooms, page_info)。
     """
     from parse_meituan_xml import parse_meituan_rooms_from_xml, extract_meituan_page_info
@@ -414,23 +564,33 @@ def collect_all_rooms_from_device(
     all_rooms: list[dict] = []
     seen_keys: set = set()
     page_info: dict = {}
-    last_xml_hash = None
-    same_hash_count = 0
 
     print("  请确保：1) 当前在「预订」Tab  2) 屏幕上已能看到第一个房型卡（如有必要请先手动滑到房型列表顶部）。")
     if scroll_to_top:
         try:
             for _ in range(2):
-                d.swipe(500, 800, 500, 1800, duration=0.4)
-                time.sleep(0.3)
-            time.sleep(1.2)
+                swipe_list_finger_down(d, duration=0.2)
+                time.sleep(0.25)
+            time.sleep(0.8)
         except Exception as e:
             print(f"  滚回顶部异常（继续采集）: {e}")
     time.sleep(1.0)
 
+    _pass_expand_only_to_bottom(d, max_swipes, swipe_sleep)
+    _scroll_list_to_top(d, max_swipes=max(28, min(max_swipes, 40)))
+
+    print(
+        "  [3/3] 采集阶段：从当前屏开始解析；每屏结束后在列表安全区（屏高中下～中部）手指上移，"
+        "列表向下滚动以露出下方房型（避免划入顶部头图区）。"
+    )
+    time.sleep(0.5)
+
+    last_xml_hash = None
+    same_hash_count = 0
+
     for i in range(max_swipes):
         if i == 0:
-            time.sleep(1.5)
+            time.sleep(0.7)
         try:
             xml = d.dump_hierarchy()
         except Exception as e:
@@ -442,8 +602,6 @@ def collect_all_rooms_from_device(
                 print("未获取到 UI 树，请确认当前在美团酒店房型列表页。")
             break
 
-        # 效仿 3.py：每屏先查找并点击「查看全部X个房型」「剩余X个房型已订完」，以及房型卡片右侧折叠箭头（碰到的折叠需展开）
-        # 保存每屏 XML 便于调试
         debug_screen = os.path.join(MEITUAN_DIR, f"debug_screen_{i+1}.xml")
         try:
             with open(debug_screen, "w", encoding="utf-8", errors="replace") as f:
@@ -452,46 +610,17 @@ def collect_all_rooms_from_device(
             pass
         expand_buttons = _find_expand_room_buttons(xml)
         chevron_buttons = _find_collapsed_chevron_buttons(xml)
-        # chevron_buttons 是 [(x,y,name),...], expand_buttons 是 [(x,y),...]
         chevron_coords = [(x, y) for x, y, _ in chevron_buttons]
         all_expand = expand_buttons + chevron_coords
-        if all_expand:
-            print(f"  第{i+1}屏: 找到 {len(expand_buttons)} 处折叠文案、{len(chevron_buttons)} 处折叠箭头，逐个点击…")
-            # 从上往下逐个点击，每次点完重新dump获取新坐标
-            tried_rooms: set[str] = set()
-            for click_round in range(10):
-                new_chevrons = _find_collapsed_chevron_buttons(xml, skip_rooms=tried_rooms)
-                new_expands = _find_expand_room_buttons(xml)
-                if not new_chevrons and not new_expands:
-                    break
-                # 优先点「查看全部」类文案按钮
-                if new_expands:
-                    x, y = new_expands[0]
-                    print(f"    round {click_round+1}: 文案展开 ({x},{y})")
-                else:
-                    # 点最上面的折叠箭头（已按 Y 从上到下排序）
-                    x, y, rname = new_chevrons[0]
-                    tried_rooms.add(rname)
-                    print(f"    round {click_round+1}: 箭头「{rname}」({x},{y})")
-                try:
-                    d.click(x, y)
-                except Exception:
-                    pass
-                time.sleep(0.8)
-                try:
-                    xml = d.dump_hierarchy()
-                except Exception:
-                    break
-                if not xml or "<" not in xml:
-                    break
-            if not xml or "<" not in xml:
-                break
-        elif i == 0 and not all_expand:
+        if i == 0 and not all_expand:
             debug_path = os.path.join(MEITUAN_DIR, "debug_first_dump.xml")
             try:
                 with open(debug_path, "w", encoding="utf-8", errors="replace") as f:
                     f.write(xml[:120000] if len(xml) > 120000 else xml)
-                print(f"  提示: 首屏未找到展开按钮，已保存 UI 树到 {debug_path}；若当前页确有「查看全部X个房型」可发该文件排查。")
+                print(
+                    f"  提示: 首屏未找到展开按钮，已保存 UI 树到 {debug_path}；"
+                    "若当前页确有「查看全部X个房型」可发该文件排查。"
+                )
             except Exception:
                 pass
 
@@ -530,7 +659,7 @@ def collect_all_rooms_from_device(
                 seen_keys.add(key)
                 all_rooms.append(dict(r))
 
-        print(f"  第{i+1}屏: 本屏识别 {len(rooms)} 条, 累计 {len(all_rooms)} 条")
+        print(f"  采集-第{i+1}屏: 本屏识别 {len(rooms)} 条, 累计 {len(all_rooms)} 条")
 
         if xml_hash == last_xml_hash:
             same_hash_count += 1
@@ -541,8 +670,9 @@ def collect_all_rooms_from_device(
             same_hash_count = 0
         last_xml_hash = xml_hash
 
+        # 浏览列表下方：列表安全区内手指上移，避免触顶头图
         try:
-            d.swipe(500, 1700, 500, 700, duration=0.5)
+            swipe_list_finger_up(d, duration=0.38)
         except Exception as e:
             print(f"  滑动异常: {e}")
             break
