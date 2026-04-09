@@ -3,6 +3,8 @@
 手机端任务：独立表 app_crawl_tasks、app_hotel_search_results，不影响原有 crawl_tasks。
 """
 import json
+import os
+import sqlite3
 import uuid
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
@@ -10,6 +12,7 @@ from typing import Any, Dict, List, Optional
 from flask import Blueprint, jsonify, request
 
 from .db import db
+from .auth import require_role, ROLE_OPERATOR, ROLE_ADMIN, ROLE_SUPER_ADMIN
 
 bp = Blueprint("app_crawl_tasks", __name__, url_prefix="/api/app-crawl-tasks")
 
@@ -302,11 +305,11 @@ def api_claim():
             request.args.get("cooldown") or 0
         ) or int(
             # env 可用于全局配置
-            __import__("os").environ.get("APP_CRAWL_PLATFORM_COOLDOWN_SEC", "120")
+            os.environ.get("APP_CRAWL_PLATFORM_COOLDOWN_SEC", "120")
         )
         # running 超时回收（秒）：默认 15 分钟
         running_timeout_sec = int(
-            __import__("os").environ.get("APP_CRAWL_RUNNING_TIMEOUT_SEC", str(15 * 60))
+            os.environ.get("APP_CRAWL_RUNNING_TIMEOUT_SEC", str(15 * 60))
         )
         conn = db.get_connection(APP_DB_NAME)
         try:
@@ -315,6 +318,21 @@ def api_claim():
             ph = "%s" if is_mysql else "?"
             now = _now_str()
             now_dt = datetime.now()
+
+            # 0) 确保冷却表存在：云端若未重启或未初始化，避免直接 500
+            cooldown_table_ok = True
+            try:
+                if is_mysql:
+                    cursor.execute("SELECT 1 FROM app_crawl_cooldowns LIMIT 1")
+                else:
+                    cursor.execute("SELECT 1 FROM app_crawl_cooldowns LIMIT 1")
+            except Exception:
+                cooldown_table_ok = False
+                try:
+                    init_app_crawl_cooldown_db()
+                    cooldown_table_ok = True
+                except Exception:
+                    cooldown_table_ok = False
 
             # 1) running 超时回收：started_at 过久未完成的任务回到 queued，避免“卡死”
             try:
@@ -337,11 +355,14 @@ def api_claim():
                 # 不阻塞 claim；回收失败就忽略
                 pass
 
-            where = "status = 'queued'"
+            # where 子句：JOIN 场景必须加表别名（避免 platform 字段歧义）
+            where_plain = "status = 'queued'"
+            where_t = "t.status = 'queued'"
             params = []
             if platform:
                 # 任务表里同时有 platform 列与 platforms_json（历史兼容）；优先用 platform
-                where += f" AND (platform = {ph} OR platforms_json LIKE {ph})"
+                where_plain += f" AND (platform = {ph} OR platforms_json LIKE {ph})"
+                where_t += f" AND (t.platform = {ph} OR t.platforms_json LIKE {ph})"
                 params.extend([platform, f"%{platform}%"])
 
             # 2) 冷却过滤：根据 (user_id, platform) 的 last_reported_at 过滤掉未到点的任务
@@ -351,35 +372,56 @@ def api_claim():
             if is_mysql:
                 conn.autocommit(False)
                 try:
-                    cursor.execute(f"""
-                        SELECT t.task_id
-                        FROM app_crawl_tasks t
-                        LEFT JOIN app_crawl_cooldowns c
-                          ON c.user_id = t.user_id AND c.platform = t.platform
-                        WHERE {where}
-                          AND (c.last_reported_at IS NULL OR c.last_reported_at <= %s)
-                        ORDER BY t.created_at ASC
-                        LIMIT 1
-                        FOR UPDATE
-                    """, tuple(params + [eligible_cutoff]))
+                    if cooldown_table_ok:
+                        cursor.execute(f"""
+                            SELECT t.task_id
+                            FROM app_crawl_tasks t
+                            LEFT JOIN app_crawl_cooldowns c
+                              ON c.user_id = t.user_id AND c.platform = t.platform
+                            WHERE {where_t}
+                              AND (c.last_reported_at IS NULL OR c.last_reported_at <= %s)
+                            ORDER BY t.created_at ASC
+                            LIMIT 1
+                            FOR UPDATE
+                        """, tuple(params + [eligible_cutoff]))
+                    else:
+                        # 冷却表不可用则降级：按旧逻辑直接取 queued
+                        cursor.execute(
+                            f"SELECT task_id FROM app_crawl_tasks WHERE {where_plain} ORDER BY created_at ASC LIMIT 1 FOR UPDATE",
+                            tuple(params),
+                        )
                     row = cursor.fetchone()
                     if not row:
                         conn.rollback()
                         # 判断是否“队列为空”还是“被冷却挡住”
                         cursor.execute(
-                            f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where}",
+                            f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where_plain}",
                             tuple(params),
                         )
                         cnt_row = cursor.fetchone()
                         queued_count = 0
                         if cnt_row is not None:
-                            queued_count = (cnt_row.get("COUNT(1)") if isinstance(cnt_row, dict) else cnt_row[0]) or 0
+                            if isinstance(cnt_row, dict):
+                                # 兼容不同 driver 的列名
+                                queued_count = (
+                                    cnt_row.get("COUNT(1)")
+                                    or cnt_row.get("count(1)")
+                                    or cnt_row.get("COUNT(*)")
+                                    or cnt_row.get("count(*)")
+                                    or 0
+                                )
+                            else:
+                                queued_count = (cnt_row[0] if isinstance(cnt_row, (list, tuple)) and cnt_row else 0) or 0
                         if queued_count <= 0:
+                            return jsonify({"success": True, "task": None})
+
+                        if not cooldown_table_ok:
+                            # 冷却表不可用时，不返回 cooldown（避免误导）
                             return jsonify({"success": True, "task": None})
 
                         # 计算 next_ready_at：找一批最早的 queued 任务，对照冷却表求最小 next_ready
                         cursor.execute(
-                            f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 100",
+                            f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where_plain} ORDER BY created_at ASC LIMIT 100",
                             tuple(params),
                         )
                         pairs = cursor.fetchall() or []
@@ -428,26 +470,35 @@ def api_claim():
                 finally:
                     conn.autocommit(True)
             else:
-                cursor.execute(f"""
-                    SELECT t.*
-                    FROM app_crawl_tasks t
-                    LEFT JOIN app_crawl_cooldowns c
-                      ON c.user_id = t.user_id AND c.platform = t.platform
-                    WHERE {where}
-                      AND (c.last_reported_at IS NULL OR c.last_reported_at <= ?)
-                    ORDER BY t.created_at ASC
-                    LIMIT 1
-                """, tuple(params + [eligible_cutoff]))
+                if cooldown_table_ok:
+                    cursor.execute(f"""
+                        SELECT t.*
+                        FROM app_crawl_tasks t
+                        LEFT JOIN app_crawl_cooldowns c
+                          ON c.user_id = t.user_id AND c.platform = t.platform
+                        WHERE {where_t}
+                          AND (c.last_reported_at IS NULL OR c.last_reported_at <= ?)
+                        ORDER BY t.created_at ASC
+                        LIMIT 1
+                    """, tuple(params + [eligible_cutoff]))
+                else:
+                    cursor.execute(
+                        f"SELECT * FROM app_crawl_tasks WHERE {where_plain} ORDER BY created_at ASC LIMIT 1",
+                        tuple(params),
+                    )
                 row = cursor.fetchone()
                 if not row:
-                    cursor.execute(f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where}", tuple(params))
+                    cursor.execute(f"SELECT COUNT(1) FROM app_crawl_tasks WHERE {where_plain}", tuple(params))
                     cnt_row = cursor.fetchone()
                     queued_count = (cnt_row[0] if cnt_row else 0) or 0
                     if queued_count <= 0:
                         return jsonify({"success": True, "task": None})
 
+                    if not cooldown_table_ok:
+                        return jsonify({"success": True, "task": None})
+
                     cursor.execute(
-                        f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where} ORDER BY created_at ASC LIMIT 100",
+                        f"SELECT user_id, platform FROM app_crawl_tasks WHERE {where_plain} ORDER BY created_at ASC LIMIT 100",
                         tuple(params),
                     )
                     pairs = cursor.fetchall() or []
@@ -531,6 +582,11 @@ def api_report():
 
         # 更新冷却表：按 (user_id, platform) 记录上次上报完成时间（无论 success/failed 都更新）
         try:
+            # 冷却表可能尚未初始化（云端热更新/漏重启）；兜底自动创建
+            try:
+                init_app_crawl_cooldown_db()
+            except Exception:
+                pass
             task_row = db.query_one(
                 "SELECT user_id, platform FROM app_crawl_tasks WHERE task_id = ?",
                 (task_id,),
@@ -616,6 +672,54 @@ def api_report():
 
 
 # ---------- 需登录 ----------
+
+@bp.post("/admin/clear-queued")
+@require_role(ROLE_OPERATOR, ROLE_ADMIN, ROLE_SUPER_ADMIN)
+def api_admin_clear_queued():
+    """
+    【管理员接口】清空全库 queued 任务（可选按 platform 过滤）。
+
+    说明：
+    - 用于云端调试/环境清理：claim 不按账号过滤时，历史 queued 会干扰调试
+    - 仅允许 operator/admin/super_admin 调用（需登录）
+    - 默认仅清 status=queued，不动 running/success/failed
+    """
+    try:
+        platform = (request.args.get("platform") or "").strip().lower() or None
+        conn = db.get_connection(APP_DB_NAME)
+        try:
+            cursor = conn.cursor()
+            is_mysql = db.config["db_type"] == "mysql"
+            ph = "%s" if is_mysql else "?"
+
+            where = "status='queued'"
+            params = []
+            if platform:
+                where += f" AND platform = {ph}"
+                params.append(platform)
+
+            # 先统计再删除，返回 deleted_count
+            if is_mysql:
+                cursor.execute(f"SELECT COUNT(1) AS c FROM app_crawl_tasks WHERE {where}", tuple(params))
+                row = cursor.fetchone()
+                before = (row.get("c") if isinstance(row, dict) else row[0]) if row else 0
+                cursor.execute(f"DELETE FROM app_crawl_tasks WHERE {where}", tuple(params))
+                conn.commit()
+            else:
+                cursor.execute(f"SELECT COUNT(1) AS c FROM app_crawl_tasks WHERE {where}", tuple(params))
+                row = cursor.fetchone()
+                before = (row["c"] if isinstance(row, sqlite3.Row) else row[0]) if row else 0
+                cursor.execute(f"DELETE FROM app_crawl_tasks WHERE {where}", tuple(params))
+                conn.commit()
+
+            return jsonify({"success": True, "deleted": int(before), "platform": platform})
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @bp.delete("/<task_id>")
