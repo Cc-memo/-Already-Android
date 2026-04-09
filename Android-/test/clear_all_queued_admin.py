@@ -13,6 +13,9 @@
   # 清空全库 queued
   python test/clear_all_queued_admin.py
 
+  # 清空 queued + running（清理“执行中”残留；注意不会停止手机端进程）
+  python test/clear_all_queued_admin.py --include-running
+
   # 仅清某个平台 queued（meituan/xiecheng/ctrip/fliggy/gaode 等）
   python test/clear_all_queued_admin.py --platform meituan
 
@@ -64,6 +67,7 @@ def _credentials(args: argparse.Namespace) -> tuple[str, str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="管理员清空全库 queued 任务")
     parser.add_argument("--platform", default="", help="仅清指定平台 queued（可选）")
+    parser.add_argument("--include-running", action="store_true", help="同时清理 running（不会停止手机端正在执行的进程）")
     parser.add_argument("--yes", "-y", action="store_true", help="不询问，直接执行")
     parser.add_argument("--username", "-u", default="", help="登录用户名（也可用环境变量）")
     parser.add_argument("--password", "-p", default="", help="登录密码（不推荐在命令行明文）")
@@ -86,16 +90,23 @@ def main() -> int:
 
     platform = (args.platform or "").strip().lower()
     if not args.yes:
-        tip = f"platform={platform}" if platform else "ALL platforms"
-        ans = input(f"确认清空云端 queued（{tip}）？[y/N] ").strip().lower()
+        scope = []
+        scope.append(f"platform={platform}" if platform else "ALL platforms")
+        scope.append("include_running" if args.include_running else "queued_only")
+        ans = input(f"确认清空云端任务（{', '.join(scope)}）？[y/N] ").strip().lower()
         if ans not in ("y", "yes"):
             print("已取消")
             return 0
 
     try:
+        params = {}
+        if platform:
+            params["platform"] = platform
+        if args.include_running:
+            params["include_running"] = "true"
         r = session.post(
             f"{base}/api/app-crawl-tasks/admin/clear-queued",
-            params={"platform": platform} if platform else None,
+            params=params or None,
             timeout=60,
         )
         r.raise_for_status()
@@ -108,7 +119,10 @@ def main() -> int:
         return 2
 
     print(f"服务地址: {base}")
-    print(f"已删除 queued: {body.get('deleted')}（platform={body.get('platform') or 'ALL'}）")
+    platform_out = body.get("platform") or "ALL"
+    inc = body.get("include_running")
+    label = "queued+running" if inc else "queued"
+    print(f"已删除 {label}: {body.get('deleted')}（platform={platform_out}）")
     return 0
 
 

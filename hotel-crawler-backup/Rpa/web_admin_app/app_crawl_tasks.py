@@ -683,17 +683,27 @@ def api_admin_clear_queued():
     - 用于云端调试/环境清理：claim 不按账号过滤时，历史 queued 会干扰调试
     - 仅允许 operator/admin/super_admin 调用（需登录）
     - 默认仅清 status=queued，不动 running/success/failed
+    - 可选 include_running=true，一并清理 running（注意：不会停止手机端正在执行的进程，只是清理服务端记录）
     """
     try:
         platform = (request.args.get("platform") or "").strip().lower() or None
+        include_running = (request.args.get("include_running") or "").strip().lower() in ("1", "true", "yes", "y")
         conn = db.get_connection(APP_DB_NAME)
         try:
             cursor = conn.cursor()
             is_mysql = db.config["db_type"] == "mysql"
             ph = "%s" if is_mysql else "?"
 
-            where = "status='queued'"
+            statuses = ["queued"]
+            if include_running:
+                statuses.append("running")
+            if is_mysql:
+                in_ph = ",".join(["%s"] * len(statuses))
+            else:
+                in_ph = ",".join(["?"] * len(statuses))
+            where = f"status IN ({in_ph})"
             params = []
+            params.extend(statuses)
             if platform:
                 where += f" AND platform = {ph}"
                 params.append(platform)
@@ -712,7 +722,7 @@ def api_admin_clear_queued():
                 cursor.execute(f"DELETE FROM app_crawl_tasks WHERE {where}", tuple(params))
                 conn.commit()
 
-            return jsonify({"success": True, "deleted": int(before), "platform": platform})
+            return jsonify({"success": True, "deleted": int(before), "platform": platform, "include_running": include_running})
         finally:
             try:
                 conn.close()

@@ -23,6 +23,8 @@
    若云端存在大量历史 queued 任务，影响手机端调试，可用管理员脚本清空全库 queued（需后端支持接口 + 管理员权限）：
    ```bash
    python test/clear_all_queued_admin.py
+   # 同时清理 running（清理“执行中”残留；注意不会停止手机端进程）
+   python test/clear_all_queued_admin.py --include-running
    python test/clear_all_queued_admin.py --platform meituan
    ```
 4. 在「手机端 - 任务列表」页可查看任务状态与结果。
